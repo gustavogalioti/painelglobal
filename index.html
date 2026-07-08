@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Painel Global · Globo Terrestre</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle at 50% 35%, #0b1524 0%, #04070d 65%, #020308 100%);
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    color: #e8f4ff;
+  }
+  #app { position: relative; width: 100vw; height: 100vh; }
+  #globeCanvas { width: 100%; height: 100%; display: block; cursor: grab; }
+  #globeCanvas:active { cursor: grabbing; }
+
+  .hud-corner { position: absolute; width: 22px; height: 22px; border-color: #4fd1ff; opacity: 0.55; z-index: 2; pointer-events: none; }
+  .tl { top: 18px; left: 18px; border-top: 2px solid; border-left: 2px solid; }
+  .tr { top: 18px; right: 18px; border-top: 2px solid; border-right: 2px solid; }
+  .bl { bottom: 18px; left: 18px; border-bottom: 2px solid; border-left: 2px solid; }
+  .br { bottom: 18px; right: 18px; border-bottom: 2px solid; border-right: 2px solid; }
+
+  #header { position: absolute; top: 26px; left: 26px; z-index: 2; }
+  #eyebrow { font-size: 11px; letter-spacing: 3px; color: #4fd1ff; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; }
+  #title { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+
+  #hudData { position: absolute; top: 26px; right: 26px; z-index: 2; text-align: right; color: #9fd6ff; font-size: 12px; line-height: 1.7; opacity: 0.85; }
+
+  #footer { position: absolute; bottom: 26px; left: 26px; z-index: 2; color: #7fa8c9; font-size: 11px; letter-spacing: 0.5px; opacity: 0.75; }
+
+  #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #4fd1ff; font-size: 13px; letter-spacing: 2px; z-index: 5; background: #04070d; }
+
+  #layerControls {
+    position: absolute; bottom: 26px; right: 26px; z-index: 2;
+    background: rgba(8, 16, 28, 0.7); border: 1px solid rgba(79,209,255,0.3);
+    border-radius: 6px; padding: 10px 14px; font-size: 11px; color: #9fd6ff;
+    backdrop-filter: blur(4px);
+  }
+  #layerControls label { display: flex; align-items: center; gap: 6px; margin: 4px 0; cursor: pointer; user-select: none; }
+  #layerControls input { accent-color: #4fd1ff; }
+
+  #tooltip {
+    position: absolute; pointer-events: none; z-index: 6;
+    background: rgba(8, 16, 28, 0.92); border: 1px solid #4fd1ff;
+    border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #e8f4ff;
+    display: none; max-width: 220px; line-height: 1.5;
+  }
+  #tooltip .tt-title { font-weight: 700; color: #4fd1ff; margin-bottom: 2px; }
+
+  #countryCard {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 320px; max-width: 86vw; z-index: 10;
+    background: rgba(6, 12, 22, 0.97); border: 1px solid rgba(79,209,255,0.45);
+    border-radius: 10px; padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    display: none;
+  }
+  #countryCard .cc-close {
+    position: absolute; top: 10px; right: 12px; cursor: pointer; color: #7fa8c9;
+    font-size: 16px; background: none; border: none;
+  }
+  #countryCard .cc-close:hover { color: #4fd1ff; }
+  #countryCard .cc-flag { font-size: 36px; }
+  #countryCard .cc-name { font-size: 17px; font-weight: 700; margin: 8px 0 2px; }
+  #countryCard .cc-region { font-size: 11px; color: #7fa8c9; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+  #countryCard .cc-row { display: flex; justify-content: space-between; font-size: 12px; color: #c8e4ff; margin: 5px 0; }
+  #countryCard .cc-row span:first-child { color: #6f95b8; }
+  #countryCard .cc-row.cc-time-row span:last-child { color: #6fe08a; font-weight: 700; }
+  #countryCard hr { border: none; border-top: 1px solid rgba(79,209,255,0.2); margin: 14px 0; }
+  #countryCard textarea {
+    width: 100%; box-sizing: border-box; min-height: 70px; resize: vertical;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(79,209,255,0.25);
+    border-radius: 6px; color: #e8f4ff; font-family: inherit; font-size: 12px;
+    padding: 8px; margin-top: 6px;
+  }
+  #countryCard .cc-label { font-size: 11px; color: #7fa8c9; letter-spacing: 0.5px; text-transform: uppercase; }
+  #countryCard .cc-save {
+    margin-top: 8px; background: #4fd1ff; color: #04121c; border: none; border-radius: 6px;
+    padding: 7px 14px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  #countryCard .cc-save:hover { background: #7fe0ff; }
+  #countryCard .cc-saved-msg { font-size: 11px; color: #6fe08a; margin-left: 10px; opacity: 0; transition: opacity 0.3s; }
+
+  #sidePanel {
+    position: absolute; top: 0; right: 0; height: 100%; width: 300px; max-width: 82vw;
+    background: rgba(6, 12, 22, 0.88); border-left: 1px solid rgba(79,209,255,0.25);
+    z-index: 4; transition: transform 0.35s ease; backdrop-filter: blur(6px);
+    display: flex; flex-direction: column;
+  }
+  #sidePanel.collapsed { transform: translateX(100%); }
+  #sidePanelToggle {
+    position: absolute; top: 50%; right: 300px; transform: translateY(-50%);
+    z-index: 4; background: rgba(6,12,22,0.9); border: 1px solid rgba(79,209,255,0.35);
+    border-right: none; color: #4fd1ff; width: 22px; height: 56px; border-radius: 6px 0 0 6px;
+    cursor: pointer; font-size: 14px; transition: right 0.35s ease;
+  }
+  #sidePanelToggle.collapsed { right: 0; }
+
+  #sidePanel .sp-header { padding: 22px 20px 14px; border-bottom: 1px solid rgba(79,209,255,0.15); }
+  #sidePanel .sp-eyebrow { font-size: 10px; letter-spacing: 3px; color: #4fd1ff; text-transform: uppercase; opacity: 0.85; }
+  #sidePanel .sp-focus { font-size: 15px; font-weight: 700; margin-top: 6px; }
+  #sidePanel .sp-focus-sub { font-size: 11px; color: #7fa8c9; margin-top: 2px; }
+  #sidePanel .sp-focus-time { font-size: 12px; color: #6fe08a; margin-top: 6px; font-weight: 700; }
+  #sidePanel .sp-list { flex: 1; overflow-y: auto; padding: 10px 16px; }
+  #sidePanel .sp-item {
+    padding: 10px 12px; margin-bottom: 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(79,209,255,0.1);
+    font-size: 12px; cursor: pointer;
+  }
+  #sidePanel .sp-item:hover { border-color: rgba(79,209,255,0.4); background: rgba(79,209,255,0.06); }
+  #sidePanel .sp-item .sp-item-title { font-weight: 700; color: #e8f4ff; margin-bottom: 3px; }
+  #sidePanel .sp-item .sp-item-detail { color: #93b8d6; font-size: 11px; line-height: 1.4; }
+  #sidePanel .sp-item .sp-tag { display: inline-block; font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; margin-bottom: 5px; }
+  #sidePanel .sp-tag.news { background: rgba(79,209,255,0.18); color: #4fd1ff; }
+  #sidePanel .sp-tag.up { background: rgba(111,224,138,0.18); color: #6fe08a; }
+  #sidePanel .sp-tag.down { background: rgba(255,107,107,0.18); color: #ff6b6b; }
+  #sidePanel .sp-empty { color: #6f95b8; font-size: 12px; padding: 20px 6px; text-align: center; }
+  #sidePanel .sp-footnote { padding: 10px 20px 18px; font-size: 10px; color: #52738f; line-height: 1.5; border-top: 1px solid rgba(79,209,255,0.1); }
+
+  #sidePanel .sp-list::-webkit-scrollbar { width: 6px; }
+  #sidePanel .sp-list::-webkit-scrollbar-thumb { background: rgba(79,209,255,0.3); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="hud-corner tl"></div>
+  <div class="hud-corner tr"></div>
+  <div class="hud-corner bl"></div>
+  <div class="hud-corner br"></div>
+
+  <div id="header">
+    <div id="eyebrow">Painel Global · Módulo 01</div>
+    <div id="title">Globo Terrestre</div>
+  </div>
+
+  <div id="hudData">
+    <div id="lonReadout">LON 0.0°</div>
+    <div id="latReadout">LAT 0.0°</div>
+    <div id="zoomReadout">ZOOM 50%</div>
+  </div>
+
+  <div id="footer">ARRASTE PARA GIRAR · SCROLL / PINÇA PARA ZOOM · CLIQUE NUM PIN</div>
+
+  <div id="layerControls">
+    <label><input type="checkbox" id="toggleCountries" checked /> Países</label>
+    <label><input type="checkbox" id="toggleEvents" checked /> Notícias &amp; Mercado</label>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <div id="countryCard">
+    <button class="cc-close" id="ccClose">✕</button>
+    <div class="cc-flag" id="ccFlag"></div>
+    <div class="cc-name" id="ccName"></div>
+    <div class="cc-region" id="ccRegion"></div>
+    <div class="cc-row cc-time-row"><span>Horário local</span><span id="ccTime"></span></div>
+    <div class="cc-row"><span>Capital</span><span id="ccCapital"></span></div>
+    <div class="cc-row"><span>População (aprox.)</span><span id="ccPopulation"></span></div>
+    <div class="cc-row"><span>Moeda</span><span id="ccCurrency"></span></div>
+    <hr />
+    <div class="cc-label">Suas anotações</div>
+    <textarea id="ccNotes" placeholder="Escreva o que quiser guardar sobre este país..."></textarea>
+    <button class="cc-save" id="ccSave">Salvar</button>
+    <span class="cc-saved-msg" id="ccSavedMsg">Salvo ✓</span>
+  </div>
+
+  <div id="sidePanel">
+    <div class="sp-header">
+      <div class="sp-eyebrow">Em foco</div>
+      <div class="sp-focus" id="spFocusName">Girando…</div>
+      <div class="sp-focus-sub" id="spFocusSub"></div>
+      <div class="sp-focus-time" id="spFocusTime"></div>
+    </div>
+    <div class="sp-list" id="spList"></div>
+    <div class="sp-footnote">Dados de notícias e mercado são ilustrativos (exemplo), prontos para conectar a uma fonte real depois.</div>
+  </div>
+  <button id="sidePanelToggle">‹</button>
+
+  <div id="loading">CARREGANDO GLOBO…</div>
+
+  <canvas id="globeCanvas"></canvas>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  function flagEmoji(code) {
+    return code.toUpperCase().replace(/./g, function (c) {
+      return String.fromCodePoint(127397 + c.charCodeAt(0));
+    });
+  }
+
+  // tz = fuso horário IANA da capital de cada país
+  var COUNTRIES = [
+    { code: "US", name: "Estados Unidos", capital: "Washington, D.C.", lat: 38.9, lon: -77.0, pop: "335M", region: "América do Norte", currency: "USD", tz: "America/New_York" },
+    { code: "CA", name: "Canadá", capital: "Ottawa", lat: 45.4, lon: -75.7, pop: "39M", region: "América do Norte", currency: "CAD", tz: "America/Toronto" },
+    { code: "MX", name: "México", capital: "Cidade do México", lat: 19.4, lon: -99.1, pop: "128M", region: "América do Norte", currency: "MXN", tz: "America/Mexico_City" },
+    { code: "BR", name: "Brasil", capital: "Brasília", lat: -15.8, lon: -47.9, pop: "216M", region: "América do Sul", currency: "BRL", tz: "America/Sao_Paulo" },
+    { code: "AR", name: "Argentina", capital: "Buenos Aires", lat: -34.6, lon: -58.4, pop: "46M", region: "América do Sul", currency: "ARS", tz: "America/Argentina/Buenos_Aires" },
+    { code: "CL", name: "Chile", capital: "Santiago", lat: -33.5, lon: -70.7, pop: "19M", region: "América do Sul", currency: "CLP", tz: "America/Santiago" },
+    { code: "CO", name: "Colômbia", capital: "Bogotá", lat: 4.7, lon: -74.1, pop: "52M", region: "América do Sul", currency: "COP", tz: "America/Bogota" },
+    { code: "PE", name: "Peru", capital: "Lima", lat: -12.0, lon: -77.0, pop: "34M", region: "América do Sul", currency: "PEN", tz: "America/Lima" },
+    { code: "GB", name: "Reino Unido", capital: "Londres", lat: 51.5, lon: -0.1, pop: "68M", region: "Europa", currency: "GBP", tz: "Europe/London" },
+    { code: "FR", name: "França", capital: "Paris", lat: 48.9, lon: 2.3, pop: "68M", region: "Europa", currency: "EUR", tz: "Europe/Paris" },
+    { code: "DE", name: "Alemanha", capital: "Berlim", lat: 52.5, lon: 13.4, pop: "84M", region: "Europa", currency: "EUR", tz: "Europe/Berlin" },
+    { code: "IT", name: "Itália", capital: "Roma", lat: 41.9, lon: 12.5, pop: "59M", region: "Europa", currency: "EUR", tz: "Europe/Rome" },
+    { code: "ES", name: "Espanha", capital: "Madri", lat: 40.4, lon: -3.7, pop: "48M", region: "Europa", currency: "EUR", tz: "Europe/Madrid" },
+    { code: "PT", name: "Portugal", capital: "Lisboa", lat: 38.7, lon: -9.1, pop: "10M", region: "Europa", currency: "EUR", tz: "Europe/Lisbon" },
+    { code: "NL", name: "Países Baixos", capital: "Amsterdã", lat: 52.4, lon: 4.9, pop: "18M", region: "Europa", currency: "EUR", tz: "Europe/Amsterdam" },
+    { code: "CH", name: "Suíça", capital: "Berna", lat: 46.9, lon: 7.4, pop: "8.8M", region: "Europa", currency: "CHF", tz: "Europe/Zurich" },
+    { code: "SE", name: "Suécia", capital: "Estocolmo", lat: 59.3, lon: 18.1, pop: "10.5M", region: "Europa", currency: "SEK", tz: "Europe/Stockholm" },
+    { code: "NO", name: "Noruega", capital: "Oslo", lat: 59.9, lon: 10.7, pop: "5.5M", region: "Europa", currency: "NOK", tz: "Europe/Oslo" },
+    { code: "PL", name: "Polônia", capital: "Varsóvia", lat: 52.2, lon: 21.0, pop: "37M", region: "Europa", currency: "PLN", tz: "Europe/Warsaw" },
+    { code: "UA", name: "Ucrânia", capital: "Kiev", lat: 50.4, lon: 30.5, pop: "37M", region: "Europa", currency: "UAH", tz: "Europe/Kyiv" },
+    { code: "RU", name: "Rússia", capital: "Moscou", lat: 55.8, lon: 37.6, pop: "144M", region: "Europa/Ásia", currency: "RUB", tz: "Europe/Moscow" },
+    { code: "TR", name: "Turquia", capital: "Ancara", lat: 39.9, lon: 32.9, pop: "85M", region: "Oriente Médio", currency: "TRY", tz: "Europe/Istanbul" },
+    { code: "SA", name: "Arábia Saudita", capital: "Riade", lat: 24.7, lon: 46.7, pop: "36M", region: "Oriente Médio", currency: "SAR", tz: "Asia/Riyadh" },
+    { code: "AE", name: "Emirados Árabes Unidos", capital: "Abu Dhabi", lat: 24.5, lon: 54.4, pop: "10M", region: "Oriente Médio", currency: "AED", tz: "Asia/Dubai" },
+    { code: "IL", name: "Israel", capital: "Jerusalém", lat: 31.8, lon: 35.2, pop: "9.7M", region: "Oriente Médio", currency: "ILS", tz: "Asia/Jerusalem" },
+    { code: "EG", name: "Egito", capital: "Cairo", lat: 30.0, lon: 31.2, pop: "112M", region: "África", currency: "EGP", tz: "Africa/Cairo" },
+    { code: "ZA", name: "África do Sul", capital: "Pretória", lat: -25.7, lon: 28.2, pop: "60M", region: "África", currency: "ZAR", tz: "Africa/Johannesburg" },
+    { code: "NG", name: "Nigéria", capital: "Abuja", lat: 9.1, lon: 7.5, pop: "227M", region: "África", currency: "NGN", tz: "Africa/Lagos" },
+    { code: "KE", name: "Quênia", capital: "Nairóbi", lat: -1.3, lon: 36.8, pop: "55M", region: "África", currency: "KES", tz: "Africa/Nairobi" },
+    { code: "IN", name: "Índia", capital: "Nova Délhi", lat: 28.6, lon: 77.2, pop: "1.44B", region: "Ásia", currency: "INR", tz: "Asia/Kolkata" },
+    { code: "CN", name: "China", capital: "Pequim", lat: 39.9, lon: 116.4, pop: "1.41B", region: "Ásia", currency: "CNY", tz: "Asia/Shanghai" },
+    { code: "JP", name: "Japão", capital: "Tóquio", lat: 35.7, lon: 139.7, pop: "124M", region: "Ásia", currency: "JPY", tz: "Asia/Tokyo" },
+    { code: "KR", name: "Coreia do Sul", capital: "Seul", lat: 37.6, lon: 127.0, pop: "51M", region: "Ásia", currency: "KRW", tz: "Asia/Seoul" },
+    { code: "ID", name: "Indonésia", capital: "Jacarta", lat: -6.2, lon: 106.8, pop: "281M", region: "Ásia", currency: "IDR", tz: "Asia/Jakarta" },
+    { code: "TH", name: "Tailândia", capital: "Bangcoc", lat: 13.8, lon: 100.5, pop: "72M", region: "Ásia", currency: "THB", tz: "Asia/Bangkok" },
+    { code: "VN", name: "Vietnã", capital: "Hanói", lat: 21.0, lon: 105.8, pop: "99M", region: "Ásia", currency: "VND", tz: "Asia/Ho_Chi_Minh" },
+    { code: "SG", name: "Singapura", capital: "Singapura", lat: 1.35, lon: 103.8, pop: "5.9M", region: "Ásia", currency: "SGD", tz: "Asia/Singapore" },
+    { code: "AU", name: "Austrália", capital: "Camberra", lat: -35.3, lon: 149.1, pop: "27M", region: "Oceania", currency: "AUD", tz: "Australia/Sydney" },
+    { code: "NZ", name: "Nova Zelândia", capital: "Wellington", lat: -41.3, lon: 174.8, pop: "5.2M", region: "Oceania", currency: "NZD", tz: "Pacific/Auckland" }
+  ];
+
+  var MOCK_EVENTS = [
+    { country: "US", type: "market", label: "S&P 500", detail: "+0.8% no pregão de hoje", direction: "up" },
+    { country: "US", type: "news", label: "Fed sinaliza pausa nos juros", detail: "Mercado precifica manutenção da taxa em julho" },
+    { country: "BR", type: "market", label: "Ibovespa", detail: "-1.2% com pressão do câmbio", direction: "down" },
+    { country: "BR", type: "news", label: "Banco Central corta Selic em 0,25pp", detail: "Decisão dividida no Copom" },
+    { country: "CN", type: "market", label: "Shanghai Composite", detail: "+0.3% em dia de baixa liquidez", direction: "up" },
+    { country: "CN", type: "news", label: "Exportações da China crescem 4%", detail: "Alta acima do esperado em junho" },
+    { country: "DE", type: "market", label: "DAX", detail: "+1.1% puxado por industriais", direction: "up" },
+    { country: "GB", type: "market", label: "FTSE 100", detail: "-0.4% com libra em alta", direction: "down" },
+    { country: "JP", type: "market", label: "Nikkei 225", detail: "+2.0% com iene mais fraco", direction: "up" },
+    { country: "IN", type: "market", label: "Sensex", detail: "+0.6% em máxima histórica", direction: "up" },
+    { country: "SA", type: "news", label: "Aramco anuncia investimento em energia limpa", detail: "Diversificação da matriz energética" },
+    { country: "ZA", type: "news", label: "Rand se fortalece frente ao dólar", detail: "Fluxo de capital estrangeiro em alta" },
+    { country: "AE", type: "market", label: "Dubai Financial Market", detail: "+0.5% com setor imobiliário", direction: "up" },
+    { country: "TR", type: "market", label: "BIST 100", detail: "-2.3% após dado de inflação", direction: "down" },
+    { country: "AR", type: "news", label: "Argentina anuncia pacote fiscal", detail: "Meta de déficit zero reforçada" },
+    { country: "FR", type: "news", label: "BCE mantém juros na reunião de julho", detail: "Sinaliza cautela para o 2º semestre" },
+    { country: "AU", type: "market", label: "ASX 200", detail: "+0.3% com mineradoras em alta", direction: "up" },
+    { country: "KR", type: "market", label: "KOSPI", detail: "+1.4% puxado por semicondutores", direction: "up" },
+    { country: "MX", type: "news", label: "Peso mexicano opera estável", detail: "Mercado aguarda decisão do Banxico" },
+    { country: "EG", type: "news", label: "Egito recebe novo pacote do FMI", detail: "Reformas fiscais em andamento" }
+  ];
+
+  var EARTH_TEXTURE_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/earth_atmos_2048.jpg";
+  var EARTH_BUMP_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/earth_normal_2048.jpg";
+  var EARTH_SPECULAR_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/earth_specular_2048.jpg";
+  var EARTH_CLOUDS_URL = "https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/textures/planets/earth_clouds_1024.png";
+
+  var EARTH_RADIUS = 1.5;
+
+  var canvas = document.getElementById('globeCanvas');
+  var loadingEl = document.getElementById('loading');
+  var lonReadout = document.getElementById('lonReadout');
+  var latReadout = document.getElementById('latReadout');
+  var zoomReadout = document.getElementById('zoomReadout');
+  var tooltipEl = document.getElementById('tooltip');
+
+  var width = window.innerWidth, height = window.innerHeight;
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 2000);
+  camera.position.set(0, 0, 4.2);
+
+  var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(width, height);
+
+  var starGeometry = new THREE.BufferGeometry();
+  var starCount = 3500;
+  var starPositions = new Float32Array(starCount * 3);
+  for (var i = 0; i < starCount; i++) {
+    var r = 60 + Math.random() * 200;
+    var theta0 = Math.random() * Math.PI * 2;
+    var phi0 = Math.acos(2 * Math.random() - 1);
+    starPositions[i * 3] = r * Math.sin(phi0) * Math.cos(theta0);
+    starPositions[i * 3 + 1] = r * Math.sin(phi0) * Math.sin(theta0);
+    starPositions[i * 3 + 2] = r * Math.cos(phi0);
+  }
+  starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  var stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xbfe0ff, size: 0.5, sizeAttenuation: true, transparent: true, opacity: 0.75 }));
+  scene.add(stars);
+
+  var earthGroup = new THREE.Group();
+  earthGroup.rotation.z = THREE.MathUtils.degToRad(23.4);
+  scene.add(earthGroup);
+
+  var loader = new THREE.TextureLoader();
+  loader.crossOrigin = 'anonymous';
+
+  var earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
+  var earthMaterial = new THREE.MeshPhongMaterial({ color: 0x223355, shininess: 12 });
+  var earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+  earthGroup.add(earthMesh);
+
+  var revealed = false;
+  function reveal() { if (!revealed) { revealed = true; loadingEl.style.display = 'none'; } }
+
+  loader.load(EARTH_TEXTURE_URL, function (tex) {
+    earthMaterial.map = tex; earthMaterial.color.set(0xffffff); earthMaterial.needsUpdate = true; reveal();
+  }, undefined, reveal);
+  loader.load(EARTH_BUMP_URL, function (tex) { earthMaterial.normalMap = tex; earthMaterial.needsUpdate = true; });
+  loader.load(EARTH_SPECULAR_URL, function (tex) { earthMaterial.specularMap = tex; earthMaterial.specular = new THREE.Color(0x333333); earthMaterial.needsUpdate = true; });
+
+  var cloudGeometry = new THREE.SphereGeometry(EARTH_RADIUS * 1.01, 64, 64);
+  var cloudMaterial = new THREE.MeshPhongMaterial({ transparent: true, opacity: 0.35, depthWrite: false });
+  var cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+  earthGroup.add(cloudMesh);
+  loader.load(EARTH_CLOUDS_URL, function (tex) { cloudMaterial.alphaMap = tex; cloudMaterial.map = tex; cloudMaterial.needsUpdate = true; });
+
+  var atmosphereMaterial = new THREE.ShaderMaterial({
+    vertexShader: "varying vec3 vNormal; void main() { vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: "varying vec3 vNormal; void main() { float intensity = pow(0.65 - dot(vNormal, vec3(0.0,0.0,1.0)), 3.0); gl_FragColor = vec4(0.35,0.65,1.0,1.0) * intensity; }",
+    side: THREE.BackSide, blending: THREE.AdditiveBlending, transparent: true
+  });
+  scene.add(new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS * 1.08, 64, 64), atmosphereMaterial));
+
+  var ring = new THREE.Mesh(new THREE.RingGeometry(EARTH_RADIUS * 1.37, EARTH_RADIUS * 1.38, 128), new THREE.MeshBasicMaterial({ color: 0x4fd1ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
+  ring.rotation.x = Math.PI / 2.15;
+  scene.add(ring);
+
+  scene.add(new THREE.AmbientLight(0x8899bb, 0.35));
+  var sunLight = new THREE.DirectionalLight(0xffffff, 1.3);
+  sunLight.position.set(5, 2, 4);
+  scene.add(sunLight);
+
+  function latLonToVector3(lat, lon, radius) {
+    var phi = THREE.MathUtils.degToRad(90 - lat);
+    var theta = THREE.MathUtils.degToRad(lon + 180);
+    return new THREE.Vector3(
+      -radius * Math.sin(phi) * Math.cos(theta),
+      radius * Math.cos(phi),
+      radius * Math.sin(phi) * Math.sin(theta)
+    );
+  }
+
+  function createPinTexture(emoji) {
+    var size = 128;
+    var c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    var ctx = c.getContext('2d');
+    ctx.beginPath();
+    ctx.arc(size / 2, size * 0.38, size * 0.32, 0, Math.PI * 2);
+    ctx.fillStyle = '#0c1826';
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#4fd1ff';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(size * 0.5 - 14, size * 0.62);
+    ctx.lineTo(size * 0.5 + 14, size * 0.62);
+    ctx.lineTo(size * 0.5, size * 0.92);
+    ctx.closePath();
+    ctx.fillStyle = '#4fd1ff';
+    ctx.fill();
+    ctx.font = (size * 0.34) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, size / 2, size * 0.38);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function createEventTexture(color) {
+    var size = 64;
+    var c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    var ctx = c.getContext('2d');
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size * 0.22, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size * 0.34, 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    return new THREE.CanvasTexture(c);
+  }
+
+  var countryGroup = new THREE.Group();
+  var eventGroup = new THREE.Group();
+  earthGroup.add(countryGroup);
+  earthGroup.add(eventGroup);
+
+  var countryByCode = {};
+  COUNTRIES.forEach(function (c) {
+    var pos = latLonToVector3(c.lat, c.lon, EARTH_RADIUS * 1.03);
+    var tex = createPinTexture(flagEmoji(c.code));
+    var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true });
+    var sprite = new THREE.Sprite(mat);
+    sprite.position.copy(pos);
+    sprite.scale.set(0.22, 0.22, 0.22);
+    sprite.userData = { kind: 'country', data: c };
+    countryGroup.add(sprite);
+    countryByCode[c.code] = c;
+  });
+
+  var eventColors = { news: '#4fd1ff', up: '#6fe08a', down: '#ff6b6b' };
+  MOCK_EVENTS.forEach(function (ev) {
+    var country = countryByCode[ev.country];
+    if (!country) return;
+    var jitterLat = country.lat + (Math.random() - 0.5) * 6;
+    var jitterLon = country.lon + (Math.random() - 0.5) * 6;
+    var pos = latLonToVector3(jitterLat, jitterLon, EARTH_RADIUS * 1.03);
+    var colorKey = ev.type === 'market' ? ev.direction : 'news';
+    var tex = createEventTexture(eventColors[colorKey] || eventColors.news);
+    var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true });
+    var sprite = new THREE.Sprite(mat);
+    sprite.position.copy(pos);
+    sprite.scale.set(0.11, 0.11, 0.11);
+    sprite.userData = { kind: 'event', data: ev };
+    eventGroup.add(sprite);
+  });
+
+  // -------------------------------------------------------------
+  // Horário local (Intl API — não precisa de servidor/API externa)
+  // -------------------------------------------------------------
+  function formatLocalTime(tz) {
+    try {
+      return new Date().toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return '—';
+    }
+  }
+
+  var rotationVelocity = { x: 0, y: 0.0011 };
+  var isDragging = false;
+  var prevPointer = { x: 0, y: 0 };
+  var dragStart = { x: 0, y: 0, time: 0 };
+  var damping = 0.94;
+  var dragSensitivity = 0.005;
+  var minRotX = -1.3, maxRotX = 1.3;
+  var targetZoom = 4.2, minZoom = 1.9, maxZoom = 8;
+
+  function getPointer(e) {
+    return (e.touches && e.touches.length > 0)
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      : { x: e.clientX, y: e.clientY };
+  }
+
+  function onPointerDown(e) {
+    isDragging = true;
+    var p = getPointer(e);
+    prevPointer = p;
+    dragStart = { x: p.x, y: p.y, time: Date.now() };
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) { handleHover(e); return; }
+    var p = getPointer(e);
+    var dx = p.x - prevPointer.x, dy = p.y - prevPointer.y;
+    rotationVelocity.x = dy * dragSensitivity * 0.4;
+    rotationVelocity.y = dx * dragSensitivity;
+    earthGroup.rotation.y += rotationVelocity.y;
+    earthGroup.rotation.x = THREE.MathUtils.clamp(earthGroup.rotation.x + rotationVelocity.x, minRotX, maxRotX);
+    prevPointer = p;
+  }
+
+  function onPointerUp(e) {
+    isDragging = false;
+    var p = (e.changedTouches && e.changedTouches.length > 0)
+      ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY }
+      : { x: e.clientX, y: e.clientY };
+    var dist = Math.hypot(p.x - dragStart.x, p.y - dragStart.y);
+    var elapsed = Date.now() - dragStart.time;
+    if (dist < 6 && elapsed < 400) {
+      handleClick(p);
+    }
+  }
+
+  var raycaster = new THREE.Raycaster();
+  var pointerVec = new THREE.Vector2();
+
+  function pickMarker(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    pointerVec.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointerVec.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointerVec, camera);
+    var targets = countryGroup.children.concat(eventGroup.children).filter(function (s) { return s.visible; });
+    var hits = raycaster.intersectObjects(targets);
+    return hits.length > 0 ? hits[0].object : null;
+  }
+
+  function handleHover(e) {
+    var hit = pickMarker(e.clientX, e.clientY);
+    if (hit) {
+      canvas.style.cursor = 'pointer';
+      var ud = hit.userData;
+      if (ud.kind === 'country') {
+        tooltipEl.innerHTML = '<div class="tt-title">' + flagEmoji(ud.data.code) + ' ' + ud.data.name + '</div>' + ud.data.capital + ' · ' + ud.data.pop + ' hab. · ' + formatLocalTime(ud.data.tz);
+      } else {
+        var ev = ud.data;
+        var tagLabel = ev.type === 'market' ? 'Mercado' : 'Notícia';
+        tooltipEl.innerHTML = '<div class="tt-title">' + tagLabel + '</div>' + ev.label + ' — ' + ev.detail;
+      }
+      tooltipEl.style.display = 'block';
+      tooltipEl.style.left = (e.clientX + 16) + 'px';
+      tooltipEl.style.top = (e.clientY + 16) + 'px';
+    } else {
+      canvas.style.cursor = 'grab';
+      tooltipEl.style.display = 'none';
+    }
+  }
+
+  function handleClick(p) {
+    var hit = pickMarker(p.x, p.y);
+    if (hit && hit.userData.kind === 'country') {
+      openCountryCard(hit.userData.data);
+    } else if (hit && hit.userData.kind === 'event') {
+      openCountryCard(countryByCode[hit.userData.data.country]);
+    }
+  }
+
+  var lastPinchDist = null;
+  function onTouchMoveZoom(e) {
+    if (e.touches.length === 2) {
+      var dx = e.touches[0].clientX - e.touches[1].clientX;
+      var dy = e.touches[0].clientY - e.touches[1].clientY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (lastPinchDist != null) {
+        var delta = dist - lastPinchDist;
+        targetZoom = THREE.MathUtils.clamp(targetZoom - delta * 0.01, minZoom, maxZoom);
+      }
+      lastPinchDist = dist;
+    }
+  }
+
+  canvas.style.touchAction = 'none';
+  canvas.addEventListener('mousedown', onPointerDown);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+  canvas.addEventListener('touchstart', function (e) { onPointerDown(e); if (e.touches.length === 2) lastPinchDist = null; });
+  canvas.addEventListener('touchmove', function (e) { onPointerMove(e); onTouchMoveZoom(e); });
+  canvas.addEventListener('touchend', function (e) { onPointerUp(e); lastPinchDist = null; });
+  canvas.addEventListener('wheel', function (e) { e.preventDefault(); targetZoom = THREE.MathUtils.clamp(targetZoom + e.deltaY * 0.0025, minZoom, maxZoom); }, { passive: false });
+
+  var countryCard = document.getElementById('countryCard');
+  var ccFlag = document.getElementById('ccFlag');
+  var ccName = document.getElementById('ccName');
+  var ccRegion = document.getElementById('ccRegion');
+  var ccCapital = document.getElementById('ccCapital');
+  var ccPopulation = document.getElementById('ccPopulation');
+  var ccCurrency = document.getElementById('ccCurrency');
+  var ccTime = document.getElementById('ccTime');
+  var ccNotes = document.getElementById('ccNotes');
+  var ccSave = document.getElementById('ccSave');
+  var ccSavedMsg = document.getElementById('ccSavedMsg');
+  var ccClose = document.getElementById('ccClose');
+  var currentCardCountry = null;
+  var cardClockInterval = null;
+
+  function notesKey(code) { return 'globo-notas-' + code; }
+  function loadNotes(code) { try { return localStorage.getItem(notesKey(code)) || ''; } catch (e) { return ''; } }
+  function saveNotes(code, text) { try { localStorage.setItem(notesKey(code), text); } catch (e) {} }
+
+  function openCountryCard(country) {
+    if (!country) return;
+    currentCardCountry = country;
+    ccFlag.textContent = flagEmoji(country.code);
+    ccName.textContent = country.name;
+    ccRegion.textContent = country.region;
+    ccCapital.textContent = country.capital;
+    ccPopulation.textContent = country.pop;
+    ccCurrency.textContent = country.currency;
+    ccNotes.value = loadNotes(country.code);
+    ccSavedMsg.style.opacity = 0;
+    countryCard.style.display = 'block';
+
+    if (cardClockInterval) clearInterval(cardClockInterval);
+    ccTime.textContent = formatLocalTime(country.tz);
+    cardClockInterval = setInterval(function () {
+      ccTime.textContent = formatLocalTime(country.tz);
+    }, 1000);
+  }
+  ccClose.addEventListener('click', function () {
+    countryCard.style.display = 'none';
+    if (cardClockInterval) { clearInterval(cardClockInterval); cardClockInterval = null; }
+  });
+  ccSave.addEventListener('click', function () {
+    if (!currentCardCountry) return;
+    saveNotes(currentCardCountry.code, ccNotes.value);
+    ccSavedMsg.style.opacity = 1;
+    setTimeout(function () { ccSavedMsg.style.opacity = 0; }, 1800);
+  });
+
+  document.getElementById('toggleCountries').addEventListener('change', function (e) {
+    countryGroup.visible = e.target.checked;
+  });
+  document.getElementById('toggleEvents').addEventListener('change', function (e) {
+    eventGroup.visible = e.target.checked;
+  });
+
+  var sidePanel = document.getElementById('sidePanel');
+  var sidePanelToggle = document.getElementById('sidePanelToggle');
+  var spFocusName = document.getElementById('spFocusName');
+  var spFocusSub = document.getElementById('spFocusSub');
+  var spFocusTime = document.getElementById('spFocusTime');
+  var spList = document.getElementById('spList');
+  var panelCollapsed = false;
+
+  sidePanelToggle.addEventListener('click', function () {
+    panelCollapsed = !panelCollapsed;
+    sidePanel.classList.toggle('collapsed', panelCollapsed);
+    sidePanelToggle.classList.toggle('collapsed', panelCollapsed);
+    sidePanelToggle.textContent = panelCollapsed ? '›' : '‹';
+  });
+
+  var worldPos = new THREE.Vector3();
+  var lastFocusCode = null;
+  var focusedCountryRef = null;
+
+  function updateFocusPanel() {
+    var best = null, bestZ = -Infinity;
+    countryGroup.children.forEach(function (sprite) {
+      sprite.getWorldPosition(worldPos);
+      if (worldPos.z > bestZ) { bestZ = worldPos.z; best = sprite.userData.data; }
+    });
+    if (!best) return;
+    focusedCountryRef = best;
+    if (best.code !== lastFocusCode) {
+      lastFocusCode = best.code;
+      spFocusName.textContent = flagEmoji(best.code) + ' ' + best.name;
+      spFocusSub.textContent = best.capital + ' · ' + best.region;
+
+      var items = MOCK_EVENTS.filter(function (ev) { return ev.country === best.code; });
+      if (items.length === 0) {
+        items = MOCK_EVENTS.filter(function (ev) {
+          var c = countryByCode[ev.country];
+          return c && c.region === best.region;
+        }).slice(0, 4);
+      }
+
+      spList.innerHTML = '';
+      if (items.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'sp-empty';
+        empty.textContent = 'Sem eventos por perto. Gire o globo para explorar outra região.';
+        spList.appendChild(empty);
+      } else {
+        items.forEach(function (ev) {
+          var el = document.createElement('div');
+          el.className = 'sp-item';
+          var tagClass = ev.type === 'market' ? ev.direction : 'news';
+          var tagText = ev.type === 'market' ? (ev.direction === 'up' ? '▲ Mercado' : '▼ Mercado') : 'Notícia';
+          el.innerHTML = '<span class="sp-tag ' + tagClass + '">' + tagText + '</span>' +
+            '<div class="sp-item-title">' + ev.label + '</div>' +
+            '<div class="sp-item-detail">' + ev.detail + '</div>';
+          el.addEventListener('click', function () { openCountryCard(countryByCode[ev.country]); });
+          spList.appendChild(el);
+        });
+      }
+    }
+    spFocusTime.textContent = 'Agora lá: ' + formatLocalTime(best.tz);
+  }
+
+  var autoRotateSpeed = 0.0011;
+  var frameCount = 0;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    frameCount++;
+
+    if (!isDragging) {
+      earthGroup.rotation.y += rotationVelocity.y;
+      earthGroup.rotation.x = THREE.MathUtils.clamp(earthGroup.rotation.x + rotationVelocity.x, minRotX, maxRotX);
+      rotationVelocity.x *= damping;
+      rotationVelocity.y *= damping;
+      if (Math.abs(rotationVelocity.y) < autoRotateSpeed) {
+        rotationVelocity.y = THREE.MathUtils.lerp(rotationVelocity.y, autoRotateSpeed, 0.01);
+      }
+    }
+
+    cloudMesh.rotation.y += 0.00035;
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZoom, 0.08);
+    stars.rotation.y += 0.00005;
+
+    var pulse = 1 + Math.sin(frameCount * 0.05) * 0.08;
+    eventGroup.children.forEach(function (s) { s.scale.set(0.11 * pulse, 0.11 * pulse, 0.11 * pulse); });
+
+    renderer.render(scene, camera);
+
+    if (frameCount % 6 === 0) updateFocusPanel();
+
+    var lonDeg = ((THREE.MathUtils.radToDeg(-earthGroup.rotation.y) + 540) % 360) - 180;
+    var latDeg = THREE.MathUtils.radToDeg(earthGroup.rotation.x);
+    var zoomPercent = Math.round(100 - ((camera.position.z - minZoom) / (maxZoom - minZoom)) * 100);
+    lonReadout.textContent = 'LON ' + lonDeg.toFixed(1) + '°';
+    latReadout.textContent = 'LAT ' + latDeg.toFixed(1) + '°';
+    zoomReadout.textContent = 'ZOOM ' + zoomPercent + '%';
+  }
+  animate();
+
+  window.addEventListener('resize', function () {
+    width = window.innerWidth; height = window.innerHeight;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+  });
+})();
+</script>
+</body>
+</html>
