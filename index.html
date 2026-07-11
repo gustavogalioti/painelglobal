@@ -912,39 +912,33 @@
     return { colorTheme: 'dark', isTransparent: true, locale: 'br', showChart: true, tabs: tabs };
   }
 
-  function nowHM() {
-    return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
-  function fmtBRL(v) {
-    return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-  }
-  function fmtPctStr(v) {
-    return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
-  }
-
   // ---------------------------------------------------------------
-  // Câmbio real via Frankfurter.app (taxas de referência do BCE,
-  // sem chave, com CORS liberado — não precisa de backend)
+  // Câmbio real via Frankfurter.app (taxas do BCE, sem chave, CORS
+  // liberado) — pares no mesmo formato do painel original
   // ---------------------------------------------------------------
-  var CAMBIO_MOEDAS = [
-    { code: 'USD', name: 'Dólar', flag: '🇺🇸' },
-    { code: 'EUR', name: 'Euro', flag: '🇪🇺' },
-    { code: 'GBP', name: 'Libra', flag: '🇬🇧' },
-    { code: 'JPY', name: 'Iene', flag: '🇯🇵' },
-    { code: 'CNY', name: 'Yuan', flag: '🇨🇳' },
-    { code: 'CHF', name: 'Franco Suíço', flag: '🇨🇭' },
-    { code: 'AUD', name: 'Dólar Australiano', flag: '🇦🇺' },
-    { code: 'CAD', name: 'Dólar Canadense', flag: '🇨🇦' }
+  var CAMBIO_BASE_SYMBOLS = 'BRL,EUR,GBP,JPY,CNY,CHF,CAD,MXN';
+  var PAIR_SPECS = [
+    { name: 'USD/BRL', flag: '🇺🇸', calc: function (r) { return r.BRL; } },
+    { name: 'EUR/BRL', flag: '🇪🇺', calc: function (r) { return r.BRL / r.EUR; } },
+    { name: 'GBP/BRL', flag: '🇬🇧', calc: function (r) { return r.BRL / r.GBP; } },
+    { name: 'JPY/BRL', flag: '🇯🇵', calc: function (r) { return r.BRL / r.JPY; } },
+    { name: 'EUR/USD', flag: '🇪🇺', calc: function (r) { return 1 / r.EUR; } },
+    { name: 'GBP/USD', flag: '🇬🇧', calc: function (r) { return 1 / r.GBP; } },
+    { name: 'USD/JPY', flag: '🇯🇵', calc: function (r) { return r.JPY; } },
+    { name: 'USD/CNY', flag: '🇨🇳', calc: function (r) { return r.CNY; } },
+    { name: 'USD/ARS', flag: '🇦🇷', calc: function () { return null; } }, // BCE não cobre peso argentino
+    { name: 'USD/CHF', flag: '🇨🇭', calc: function (r) { return r.CHF; } },
+    { name: 'USD/CAD', flag: '🇨🇦', calc: function (r) { return r.CAD; } },
+    { name: 'USD/MXN', flag: '🇲🇽', calc: function (r) { return r.MXN; } }
   ];
 
   function loadCambio(bodyEl, updatedSpan) {
     bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando câmbio real (Frankfurter/BCE)...</div>';
-    var codes = CAMBIO_MOEDAS.map(function (m) { return m.code; }).join(',');
-    var todayUrl = 'https://api.frankfurter.dev/v1/latest?base=USD&symbols=BRL,' + codes;
+    var todayUrl = 'https://api.frankfurter.dev/v1/latest?base=USD&symbols=' + CAMBIO_BASE_SYMBOLS;
     fetch(todayUrl).then(function (r) { return r.json(); }).then(function (today) {
-      var d = new Date(); d.setDate(d.getDate() - 3); // volta alguns dias p/ garantir dia útil anterior
+      var d = new Date(); d.setDate(d.getDate() - 4);
       var pastStr = d.toISOString().slice(0, 10);
-      return fetch('https://api.frankfurter.dev/v1/' + pastStr + '..?base=USD&symbols=BRL,' + codes)
+      return fetch('https://api.frankfurter.dev/v1/' + pastStr + '..?base=USD&symbols=' + CAMBIO_BASE_SYMBOLS)
         .then(function (r) { return r.json(); })
         .then(function (hist) {
           var dates = Object.keys(hist.rates || {}).sort();
@@ -952,18 +946,19 @@
           return { today: today.rates, prev: prev };
         });
     }).then(function (res) {
-      var usdBrlToday = res.today.BRL;
-      var usdBrlPrev = res.prev ? res.prev.BRL : null;
-      var rows = CAMBIO_MOEDAS.map(function (m) {
-        var brlPerUnitToday = m.code === 'USD' ? usdBrlToday : usdBrlToday / res.today[m.code];
-        var row = { flag: m.flag, name: m.name, last: fmtBRL(brlPerUnitToday), time: nowHM() };
-        if (usdBrlPrev && res.prev[m.code]) {
-          var brlPerUnitPrev = m.code === 'USD' ? usdBrlPrev : usdBrlPrev / res.prev[m.code];
-          var chg = brlPerUnitToday - brlPerUnitPrev;
-          var chgPct = (chg / brlPerUnitPrev) * 100;
-          row.chg = (chg >= 0 ? '+' : '') + chg.toFixed(4);
-          row.chgPct = fmtPctStr(chgPct);
-          row.up = chg >= 0;
+      var rows = PAIR_SPECS.map(function (p) {
+        var val = p.calc(res.today);
+        if (val == null) return { flag: p.flag, name: p.name, last: '--', time: '' };
+        var row = { flag: p.flag, name: p.name, last: Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }), time: nowHM() };
+        if (res.prev) {
+          var prevVal = p.calc(res.prev);
+          if (prevVal != null) {
+            var chg = val - prevVal;
+            var chgPct = (chg / prevVal) * 100;
+            row.chg = (chg >= 0 ? '+' : '') + chg.toFixed(4);
+            row.chgPct = fmtPctStr(chgPct);
+            row.up = chg >= 0;
+          }
         }
         return row;
       });
@@ -1011,49 +1006,158 @@
       });
   }
 
+  // ---------------------------------------------------------------
+  // Índices & commodities reais via Yahoo Finance, através de um
+  // proxy público (o Yahoo não libera CORS direto do navegador).
+  // É uma rota não-oficial: pode falhar às vezes — nesses casos a
+  // linha aparece como "--", igual ao seu painel original quando
+  // a cotação não vem.
+  // ---------------------------------------------------------------
+  function fetchYahooQuotes(symbols) {
+    var target = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + encodeURIComponent(symbols.join(','));
+    var proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target);
+    return fetch(proxied).then(function (r) { return r.json(); }).then(function (d) {
+      var map = {};
+      ((d.quoteResponse && d.quoteResponse.result) || []).forEach(function (q) { map[q.symbol] = q; });
+      return map;
+    });
+  }
+
+  function fmtYahooTime(ts) {
+    if (!ts) return '';
+    return new Date(ts * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function buildRowsFromQuotes(quoteMap, items) {
+    return items.map(function (it) {
+      var q = quoteMap[it.symbol];
+      if (!q || q.regularMarketPrice == null) return { flag: it.flag, name: it.name, last: '--', time: '' };
+      var last = q.regularMarketPrice, chg = q.regularMarketChange, chgPct = q.regularMarketChangePercent;
+      return {
+        flag: it.flag, name: it.name,
+        last: Number(last).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
+        chg: chg != null ? (chg >= 0 ? '+' : '') + Number(chg).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : null,
+        chgPct: chgPct != null ? fmtPctStr(chgPct) : null,
+        up: chgPct != null ? chgPct >= 0 : null,
+        time: fmtYahooTime(q.regularMarketTime)
+      };
+    });
+  }
+
+  var INDICADORES_GROUPS = [
+    { title: '🌎 Américas', items: [
+      { symbol: '^BVSP', name: 'Ibovespa', flag: '🇧🇷' },
+      { symbol: '^GSPC', name: 'S&P 500', flag: '🇺🇸' },
+      { symbol: '^IXIC', name: 'Nasdaq', flag: '🇺🇸' },
+      { symbol: '^DJI', name: 'Dow Jones', flag: '🇺🇸' },
+      { symbol: '^RUT', name: 'Russell 2000', flag: '🇺🇸' },
+      { symbol: '^VIX', name: 'S&P VIX', flag: '🇺🇸' },
+      { symbol: '^GSPTSE', name: 'Toronto', flag: '🇨🇦' },
+      { symbol: '^MXX', name: 'México', flag: '🇲🇽' }
+    ] },
+    { title: '🇪🇺 Europa', items: [
+      { symbol: '^STOXX50E', name: 'Euro Stoxx 50', flag: '🇪🇺' },
+      { symbol: '^FTSE', name: 'Inglaterra', flag: '🇬🇧' },
+      { symbol: '^FCHI', name: 'França', flag: '🇫🇷' },
+      { symbol: '^GDAXI', name: 'Alemanha', flag: '🇩🇪' },
+      { symbol: '^AEX', name: 'Holanda', flag: '🇳🇱' },
+      { symbol: '^IBEX', name: 'Espanha', flag: '🇪🇸' },
+      { symbol: 'FTSEMIB.MI', name: 'Itália', flag: '🇮🇹' },
+      { symbol: '^SSMI', name: 'Suíça', flag: '🇨🇭' }
+    ] },
+    { title: '🌏 Ásia & Oceania', items: [
+      { symbol: '^N225', name: 'Japão (Nikkei)', flag: '🇯🇵' },
+      { symbol: '^HSI', name: 'Hong Kong', flag: '🇭🇰' },
+      { symbol: '^KS11', name: 'Coreia do Sul', flag: '🇰🇷' },
+      { symbol: '^BSESN', name: 'Índia', flag: '🇮🇳' },
+      { symbol: '^AXJO', name: 'Austrália', flag: '🇦🇺' },
+      { symbol: '^STI', name: 'Singapura', flag: '🇸🇬' }
+    ] },
+    { title: '📋 Futuros', items: [
+      { symbol: 'ES=F', name: 'S&P 500 Futuros', flag: '📈' },
+      { symbol: 'GC=F', name: 'Ouro', flag: '🥇' },
+      { symbol: 'CL=F', name: 'Petróleo WTI', flag: '🛢' },
+      { symbol: 'ZC=F', name: 'Milho', flag: '🌽' },
+      { symbol: 'ZS=F', name: 'Soja', flag: '🌱' }
+    ] }
+  ];
+
+  var COMMODITIES_ITEMS = [
+    { symbol: 'GC=F', name: 'Ouro', flag: '🥇' },
+    { symbol: 'SI=F', name: 'Prata', flag: '🥈' },
+    { symbol: 'CL=F', name: 'Petróleo WTI', flag: '🛢' },
+    { symbol: 'BZ=F', name: 'Brent', flag: '🛢' },
+    { symbol: 'ZS=F', name: 'Soja', flag: '🌱' },
+    { symbol: 'ZC=F', name: 'Milho', flag: '🌽' },
+    { symbol: 'ZW=F', name: 'Trigo', flag: '🌾' },
+    { symbol: 'KC=F', name: 'Café', flag: '☕' }
+  ];
+
+  function loadIndicadores(containerEl, updatedSpan) {
+    containerEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando índices...</div>';
+    var allSymbols = [];
+    INDICADORES_GROUPS.forEach(function (g) { g.items.forEach(function (it) { allSymbols.push(it.symbol); }); });
+    fetchYahooQuotes(allSymbols).then(function (quoteMap) {
+      containerEl.innerHTML = '';
+      INDICADORES_GROUPS.forEach(function (g) {
+        var card = document.createElement('div');
+        card.className = 'mkt-card';
+        var head = document.createElement('div');
+        head.className = 'mkt-card-title';
+        head.textContent = g.title;
+        card.appendChild(head);
+        var body = document.createElement('div');
+        card.appendChild(body);
+        renderMktTable(body, buildRowsFromQuotes(quoteMap, g.items));
+        containerEl.appendChild(card);
+      });
+      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
+    }).catch(function () {
+      containerEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar os índices agora (fonte instável). Toque em ↻ para tentar de novo.</div>';
+    });
+  }
+
+  function loadCommoditiesTable(bodyEl, updatedSpan) {
+    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando commodities...</div>';
+    fetchYahooQuotes(COMMODITIES_ITEMS.map(function (i) { return i.symbol; })).then(function (quoteMap) {
+      renderMktTable(bodyEl, buildRowsFromQuotes(quoteMap, COMMODITIES_ITEMS));
+      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
+    }).catch(function () {
+      bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar agora. Toque em ↻ para tentar de novo.</div>';
+    });
+  }
+
   var MKT_TABS_BUILDERS = {
     indicadores: function () {
+      var wrapper = document.createElement('div');
+      var headRow = document.createElement('div');
+      headRow.className = 'mkt-card-head-row';
+      headRow.style.marginBottom = '12px';
+      var titleSpan = document.createElement('span');
+      titleSpan.style.fontSize = '13px'; titleSpan.style.color = '#4fd1ff'; titleSpan.style.fontWeight = '800';
+      titleSpan.textContent = '📊 Índices Globais';
+      var right = document.createElement('span');
+      var updatedSpan = document.createElement('span');
+      updatedSpan.className = 'mkt-updated';
+      var btn = document.createElement('button');
+      btn.className = 'mkt-card-refresh';
+      btn.textContent = '↻';
+      right.appendChild(updatedSpan); right.appendChild(btn);
+      headRow.appendChild(titleSpan); headRow.appendChild(right);
+      wrapper.appendChild(headRow);
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
-      var c1 = mktCard('📊 Índices Globais', 380);
-      mountTV(c1.body, 'market-overview', Object.assign(marketOverviewConfig([{
-        title: 'Índices', originalTitle: 'Índices', symbols: [
-          { s: 'FOREXCOM:SPXUSD', d: 'S&P 500' },
-          { s: 'FOREXCOM:NSXUSD', d: 'Nasdaq 100' },
-          { s: 'FOREXCOM:DJI', d: 'Dow Jones' },
-          { s: 'BMFBOVESPA:IBOV', d: 'Ibovespa' },
-          { s: 'INDEX:DEU40', d: 'DAX' },
-          { s: 'FOREXCOM:UKXGBP', d: 'FTSE 100' },
-          { s: 'INDEX:NKY', d: 'Nikkei 225' }
-        ]
-      }]), { showChart: false }), 380);
-      var c2 = mktCard('📋 Futuros', 380);
-      mountTV(c2.body, 'market-overview', Object.assign(marketOverviewConfig([{
-        title: 'Futuros', originalTitle: 'Futuros', symbols: [
-          { s: 'CME_MINI:ES1!', d: 'S&P 500 Futuros' },
-          { s: 'COMEX:GC1!', d: 'Ouro' },
-          { s: 'NYMEX:CL1!', d: 'Petróleo WTI' },
-          { s: 'CBOT:ZC1!', d: 'Milho' },
-          { s: 'CBOT:ZS1!', d: 'Soja' }
-        ]
-      }]), { showChart: false }), 380);
-      var c3 = mktCard('🏦 Títulos (Juros)', 300);
-      mountTV(c3.body, 'market-overview', Object.assign(marketOverviewConfig([{
-        title: 'Títulos', originalTitle: 'Títulos', symbols: [
-          { s: 'CBOT:ZB1!', d: 'US T-Bond' },
-          { s: 'CBOT:ZN1!', d: 'US 10Y Note' },
-          { s: 'EUREX:FGBL1!', d: 'Euro Bund' }
-        ]
-      }]), { showChart: false }), 300);
-      grid.appendChild(c1.card); grid.appendChild(c2.card); grid.appendChild(c3.card);
-      return grid;
+      wrapper.appendChild(grid);
+      btn.addEventListener('click', function () { loadIndicadores(grid, updatedSpan); });
+      loadIndicadores(grid, updatedSpan);
+      return wrapper;
     },
 
     cambio: function () {
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
       grid.style.gridTemplateColumns = '1fr';
-      var c = mktCardWithRefresh('💱 Câmbio (R$ por unidade)', function (updatedSpan) { loadCambio(c.body, updatedSpan); });
+      var c = mktCardWithRefresh('💱 Câmbio', function (updatedSpan) { loadCambio(c.body, updatedSpan); });
       grid.appendChild(c.card);
       loadCambio(c.body, c.updatedSpan);
       return grid;
@@ -1062,20 +1166,10 @@
     commodities: function () {
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
-      var c1 = mktCard('🛢 Commodities', 380);
-      mountTV(c1.body, 'market-overview', Object.assign(marketOverviewConfig([{
-        title: 'Commodities', originalTitle: 'Commodities', symbols: [
-          { s: 'TVC:GOLD', d: 'Ouro' },
-          { s: 'TVC:SILVER', d: 'Prata' },
-          { s: 'TVC:USOIL', d: 'Petróleo WTI' },
-          { s: 'TVC:UKOIL', d: 'Brent' },
-          { s: 'CBOT:ZS1!', d: 'Soja' },
-          { s: 'CBOT:ZC1!', d: 'Milho' },
-          { s: 'CBOT:ZW1!', d: 'Trigo' },
-          { s: 'NYMEX:KC1!', d: 'Café' }
-        ]
-      }]), { showChart: false }), 380);
-      grid.appendChild(c1.card);
+      grid.style.gridTemplateColumns = '1fr';
+      var c = mktCardWithRefresh('🛢 Commodities', function (updatedSpan) { loadCommoditiesTable(c.body, updatedSpan); });
+      grid.appendChild(c.card);
+      loadCommoditiesTable(c.body, c.updatedSpan);
       return grid;
     },
 
