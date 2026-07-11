@@ -68,6 +68,32 @@
   }
   .mkt-footnote { font-size: 10px; color: #52738f; line-height: 1.6; margin-top: 16px; max-width: 640px; }
 
+  .mkt-table-wrap { overflow-x: auto; }
+  table.mkt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.mkt-table thead tr { background: rgba(79,209,255,0.06); }
+  table.mkt-table th {
+    padding: 7px 12px; font-size: 10px; color: #7fa8c9; font-weight: 700;
+    letter-spacing: 0.5px; text-align: right; white-space: nowrap;
+  }
+  table.mkt-table th:first-child { text-align: left; }
+  table.mkt-table td {
+    padding: 8px 12px; border-top: 1px solid rgba(79,209,255,0.1);
+    color: #e8f4ff; text-align: right; white-space: nowrap;
+  }
+  table.mkt-table td:first-child { text-align: left; }
+  table.mkt-table td.mkt-name { font-weight: 600; }
+  table.mkt-table td.mkt-time { color: #52738f; font-size: 10px; }
+  .mkt-chip { border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+  .mkt-chip.up { background: rgba(111,224,138,0.15); color: #6fe08a; }
+  .mkt-chip.down { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+  .mkt-chip.flat { background: rgba(127,168,201,0.12); color: #7fa8c9; }
+  .mkt-card-refresh {
+    background: none; border: 1px solid rgba(79,209,255,0.3); color: #9fd6ff;
+    border-radius: 14px; padding: 3px 10px; font-size: 11px; cursor: pointer; font-family: inherit;
+  }
+  .mkt-card-head-row { display: flex; align-items: center; justify-content: space-between; }
+  .mkt-updated { font-size: 10px; color: #52738f; margin-right: 8px; }
+
   #footer { position: absolute; bottom: 26px; left: 26px; z-index: 2; color: #7fa8c9; font-size: 11px; letter-spacing: 0.5px; opacity: 0.75; }
 
   #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #4fd1ff; font-size: 13px; letter-spacing: 2px; z-index: 5; background: #04070d; }
@@ -822,6 +848,58 @@
     return { card: card, body: body };
   }
 
+  // Card com cabeçalho "título + atualizado HH:MM + botão refresh", usado nas tabelas de dados reais
+  function mktCardWithRefresh(title, onRefresh) {
+    var card = document.createElement('div');
+    card.className = 'mkt-card';
+    var head = document.createElement('div');
+    head.className = 'mkt-card-title mkt-card-head-row';
+    var titleSpan = document.createElement('span');
+    titleSpan.textContent = title;
+    var right = document.createElement('span');
+    var updatedSpan = document.createElement('span');
+    updatedSpan.className = 'mkt-updated';
+    var btn = document.createElement('button');
+    btn.className = 'mkt-card-refresh';
+    btn.textContent = '↻';
+    btn.addEventListener('click', function () { onRefresh(updatedSpan); });
+    right.appendChild(updatedSpan);
+    right.appendChild(btn);
+    head.appendChild(titleSpan);
+    head.appendChild(right);
+    card.appendChild(head);
+    var body = document.createElement('div');
+    body.style.padding = '4px 0';
+    card.appendChild(body);
+    return { card: card, body: body, updatedSpan: updatedSpan };
+  }
+
+  function renderMktTable(bodyEl, rows) {
+    var wrap = document.createElement('div');
+    wrap.className = 'mkt-table-wrap';
+    var table = document.createElement('table');
+    table.className = 'mkt-table';
+    table.innerHTML =
+      '<thead><tr><th>Nome</th><th>Último</th><th>Var.</th><th>Var.%</th><th>Hora</th></tr></thead>';
+    var tbody = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      var chipClass = r.up === true ? 'up' : r.up === false ? 'down' : 'flat';
+      var arrow = r.up === true ? '▲ ' : r.up === false ? '▼ ' : '';
+      tr.innerHTML =
+        '<td class="mkt-name">' + (r.flag ? r.flag + ' ' : '') + r.name + '</td>' +
+        '<td>' + r.last + '</td>' +
+        '<td>' + (r.chg != null ? r.chg : '--') + '</td>' +
+        '<td><span class="mkt-chip ' + chipClass + '">' + (r.chgPct != null ? arrow + r.chgPct : '--') + '</span></td>' +
+        '<td class="mkt-time">' + (r.time || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    bodyEl.innerHTML = '';
+    bodyEl.appendChild(wrap);
+  }
+
   function mountTV(bodyEl, widgetType, config, heightPx) {
     var script = document.createElement('script');
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-' + widgetType + '.js';
@@ -834,12 +912,111 @@
     return { colorTheme: 'dark', isTransparent: true, locale: 'br', showChart: true, tabs: tabs };
   }
 
+  function nowHM() {
+    return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function fmtBRL(v) {
+    return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  }
+  function fmtPctStr(v) {
+    return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+  }
+
+  // ---------------------------------------------------------------
+  // Câmbio real via Frankfurter.app (taxas de referência do BCE,
+  // sem chave, com CORS liberado — não precisa de backend)
+  // ---------------------------------------------------------------
+  var CAMBIO_MOEDAS = [
+    { code: 'USD', name: 'Dólar', flag: '🇺🇸' },
+    { code: 'EUR', name: 'Euro', flag: '🇪🇺' },
+    { code: 'GBP', name: 'Libra', flag: '🇬🇧' },
+    { code: 'JPY', name: 'Iene', flag: '🇯🇵' },
+    { code: 'CNY', name: 'Yuan', flag: '🇨🇳' },
+    { code: 'CHF', name: 'Franco Suíço', flag: '🇨🇭' },
+    { code: 'AUD', name: 'Dólar Australiano', flag: '🇦🇺' },
+    { code: 'CAD', name: 'Dólar Canadense', flag: '🇨🇦' }
+  ];
+
+  function loadCambio(bodyEl, updatedSpan) {
+    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando câmbio real (Frankfurter/BCE)...</div>';
+    var codes = CAMBIO_MOEDAS.map(function (m) { return m.code; }).join(',');
+    var todayUrl = 'https://api.frankfurter.dev/v1/latest?base=USD&symbols=BRL,' + codes;
+    fetch(todayUrl).then(function (r) { return r.json(); }).then(function (today) {
+      var d = new Date(); d.setDate(d.getDate() - 3); // volta alguns dias p/ garantir dia útil anterior
+      var pastStr = d.toISOString().slice(0, 10);
+      return fetch('https://api.frankfurter.dev/v1/' + pastStr + '..?base=USD&symbols=BRL,' + codes)
+        .then(function (r) { return r.json(); })
+        .then(function (hist) {
+          var dates = Object.keys(hist.rates || {}).sort();
+          var prev = dates.length ? hist.rates[dates[0]] : null;
+          return { today: today.rates, prev: prev };
+        });
+    }).then(function (res) {
+      var usdBrlToday = res.today.BRL;
+      var usdBrlPrev = res.prev ? res.prev.BRL : null;
+      var rows = CAMBIO_MOEDAS.map(function (m) {
+        var brlPerUnitToday = m.code === 'USD' ? usdBrlToday : usdBrlToday / res.today[m.code];
+        var row = { flag: m.flag, name: m.name, last: fmtBRL(brlPerUnitToday), time: nowHM() };
+        if (usdBrlPrev && res.prev[m.code]) {
+          var brlPerUnitPrev = m.code === 'USD' ? usdBrlPrev : usdBrlPrev / res.prev[m.code];
+          var chg = brlPerUnitToday - brlPerUnitPrev;
+          var chgPct = (chg / brlPerUnitPrev) * 100;
+          row.chg = (chg >= 0 ? '+' : '') + chg.toFixed(4);
+          row.chgPct = fmtPctStr(chgPct);
+          row.up = chg >= 0;
+        }
+        return row;
+      });
+      renderMktTable(bodyEl, rows);
+      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
+    }).catch(function () {
+      bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar o câmbio agora. Toque em ↻ para tentar de novo.</div>';
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Cripto real via CoinGecko (público, sem chave, CORS liberado)
+  // ---------------------------------------------------------------
+  var CRIPTO_IDS = [
+    { id: 'bitcoin', name: 'Bitcoin', flag: '₿' },
+    { id: 'ethereum', name: 'Ethereum', flag: 'Ξ' },
+    { id: 'binancecoin', name: 'BNB', flag: '🟡' },
+    { id: 'solana', name: 'Solana', flag: '◎' },
+    { id: 'ripple', name: 'XRP', flag: '✕' },
+    { id: 'cardano', name: 'Cardano', flag: '₳' },
+    { id: 'dogecoin', name: 'Dogecoin', flag: '🐶' },
+    { id: 'avalanche-2', name: 'Avalanche', flag: '🔺' }
+  ];
+
+  function loadCripto(bodyEl, updatedSpan) {
+    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando cripto real (CoinGecko)...</div>';
+    var ids = CRIPTO_IDS.map(function (c) { return c.id; }).join(',');
+    fetch('https://api.coingecko.com/api/v3/simple/price?ids=' + ids + '&vs_currencies=usd&include_24hr_change=true')
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var rows = CRIPTO_IDS.map(function (c) {
+          var d = data[c.id] || {};
+          var chgPct = d.usd_24h_change;
+          var row = { flag: c.flag, name: c.name, last: d.usd != null ? '$ ' + Number(d.usd).toLocaleString('pt-BR', { maximumFractionDigits: d.usd < 1 ? 6 : 2 }) : '--', time: nowHM() };
+          if (chgPct != null) {
+            row.chgPct = fmtPctStr(chgPct);
+            row.up = chgPct >= 0;
+          }
+          return row;
+        });
+        renderMktTable(bodyEl, rows);
+        if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
+      }).catch(function () {
+        bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar as cotações agora. Toque em ↻ para tentar de novo.</div>';
+      });
+  }
+
   var MKT_TABS_BUILDERS = {
     indicadores: function () {
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
-      var c1 = mktCard('📊 Índices Globais', 420);
-      mountTV(c1.body, 'market-overview', marketOverviewConfig([{
+      var c1 = mktCard('📊 Índices Globais', 380);
+      mountTV(c1.body, 'market-overview', Object.assign(marketOverviewConfig([{
         title: 'Índices', originalTitle: 'Índices', symbols: [
           { s: 'FOREXCOM:SPXUSD', d: 'S&P 500' },
           { s: 'FOREXCOM:NSXUSD', d: 'Nasdaq 100' },
@@ -849,9 +1026,9 @@
           { s: 'FOREXCOM:UKXGBP', d: 'FTSE 100' },
           { s: 'INDEX:NKY', d: 'Nikkei 225' }
         ]
-      }]), 420);
-      var c2 = mktCard('📋 Futuros', 420);
-      mountTV(c2.body, 'market-overview', marketOverviewConfig([{
+      }]), { showChart: false }), 380);
+      var c2 = mktCard('📋 Futuros', 380);
+      mountTV(c2.body, 'market-overview', Object.assign(marketOverviewConfig([{
         title: 'Futuros', originalTitle: 'Futuros', symbols: [
           { s: 'CME_MINI:ES1!', d: 'S&P 500 Futuros' },
           { s: 'COMEX:GC1!', d: 'Ouro' },
@@ -859,15 +1036,15 @@
           { s: 'CBOT:ZC1!', d: 'Milho' },
           { s: 'CBOT:ZS1!', d: 'Soja' }
         ]
-      }]), 420);
-      var c3 = mktCard('🏦 Títulos (Juros)', 340);
-      mountTV(c3.body, 'market-overview', marketOverviewConfig([{
+      }]), { showChart: false }), 380);
+      var c3 = mktCard('🏦 Títulos (Juros)', 300);
+      mountTV(c3.body, 'market-overview', Object.assign(marketOverviewConfig([{
         title: 'Títulos', originalTitle: 'Títulos', symbols: [
           { s: 'CBOT:ZB1!', d: 'US T-Bond' },
           { s: 'CBOT:ZN1!', d: 'US 10Y Note' },
           { s: 'EUREX:FGBL1!', d: 'Euro Bund' }
         ]
-      }]), 340);
+      }]), { showChart: false }), 300);
       grid.appendChild(c1.card); grid.appendChild(c2.card); grid.appendChild(c3.card);
       return grid;
     },
@@ -875,20 +1052,18 @@
     cambio: function () {
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
-      var c1 = mktCard('💱 Cross Rates', 460);
-      mountTV(c1.body, 'forex-cross-rates', {
-        colorTheme: 'dark', isTransparent: true, locale: 'br',
-        currencies: ['USD', 'BRL', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF', 'AUD', 'CAD']
-      }, 460);
-      grid.appendChild(c1.card);
+      grid.style.gridTemplateColumns = '1fr';
+      var c = mktCardWithRefresh('💱 Câmbio (R$ por unidade)', function (updatedSpan) { loadCambio(c.body, updatedSpan); });
+      grid.appendChild(c.card);
+      loadCambio(c.body, c.updatedSpan);
       return grid;
     },
 
     commodities: function () {
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
-      var c1 = mktCard('🛢 Commodities', 460);
-      mountTV(c1.body, 'market-overview', marketOverviewConfig([{
+      var c1 = mktCard('🛢 Commodities', 380);
+      mountTV(c1.body, 'market-overview', Object.assign(marketOverviewConfig([{
         title: 'Commodities', originalTitle: 'Commodities', symbols: [
           { s: 'TVC:GOLD', d: 'Ouro' },
           { s: 'TVC:SILVER', d: 'Prata' },
@@ -899,7 +1074,7 @@
           { s: 'CBOT:ZW1!', d: 'Trigo' },
           { s: 'NYMEX:KC1!', d: 'Café' }
         ]
-      }]), 460);
+      }]), { showChart: false }), 380);
       grid.appendChild(c1.card);
       return grid;
     },
@@ -907,20 +1082,10 @@
     cripto: function () {
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
-      var c1 = mktCard('₿ Criptomoedas', 460);
-      mountTV(c1.body, 'market-overview', marketOverviewConfig([{
-        title: 'Cripto', originalTitle: 'Cripto', symbols: [
-          { s: 'BITSTAMP:BTCUSD', d: 'Bitcoin' },
-          { s: 'BITSTAMP:ETHUSD', d: 'Ethereum' },
-          { s: 'BINANCE:BNBUSD', d: 'BNB' },
-          { s: 'BINANCE:SOLUSD', d: 'Solana' },
-          { s: 'BINANCE:XRPUSD', d: 'XRP' },
-          { s: 'BINANCE:ADAUSD', d: 'Cardano' },
-          { s: 'BINANCE:DOGEUSD', d: 'Dogecoin' },
-          { s: 'BINANCE:AVAXUSD', d: 'Avalanche' }
-        ]
-      }]), 460);
-      grid.appendChild(c1.card);
+      grid.style.gridTemplateColumns = '1fr';
+      var c = mktCardWithRefresh('₿ Criptomoedas (USD)', function (updatedSpan) { loadCripto(c.body, updatedSpan); });
+      grid.appendChild(c.card);
+      loadCripto(c.body, c.updatedSpan);
       return grid;
     },
 
