@@ -22,11 +22,51 @@
   .bl { bottom: 18px; left: 18px; border-bottom: 2px solid; border-left: 2px solid; }
   .br { bottom: 18px; right: 18px; border-bottom: 2px solid; border-right: 2px solid; }
 
-  #header { position: absolute; top: 26px; left: 26px; z-index: 2; }
+  #header { position: absolute; top: 62px; left: 26px; z-index: 2; }
   #eyebrow { font-size: 11px; letter-spacing: 3px; color: #4fd1ff; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; }
   #title { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
 
-  #hudData { position: absolute; top: 26px; right: 26px; z-index: 2; text-align: right; color: #9fd6ff; font-size: 12px; line-height: 1.7; opacity: 0.85; }
+  #hudData { position: absolute; top: 62px; right: 26px; z-index: 2; text-align: right; color: #9fd6ff; font-size: 12px; line-height: 1.7; opacity: 0.85; }
+
+  /* Navegação principal (abas do painel) */
+  #topNav {
+    position: absolute; top: 0; left: 0; right: 0; height: 46px; z-index: 30;
+    background: rgba(6, 12, 22, 0.92); border-bottom: 1px solid rgba(79,209,255,0.25);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    backdrop-filter: blur(6px);
+  }
+  .nav-tab {
+    background: transparent; border: 1px solid rgba(79,209,255,0.3); color: #9fd6ff;
+    padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: inherit; letter-spacing: 0.3px; transition: all 0.15s;
+  }
+  .nav-tab:hover { border-color: rgba(79,209,255,0.6); }
+  .nav-tab.active { background: #4fd1ff; color: #04121c; border-color: #4fd1ff; }
+
+  #globeView, #marketView { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+  #marketView { display: none; top: 46px; overflow-y: auto; padding: 20px 20px 40px; box-sizing: border-box; }
+  #marketView::-webkit-scrollbar { width: 8px; }
+  #marketView::-webkit-scrollbar-thumb { background: rgba(79,209,255,0.3); border-radius: 4px; }
+
+  .mkt-subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .mkt-subtab {
+    background: rgba(8,16,28,0.7); border: 1px solid rgba(79,209,255,0.25); color: #9fd6ff;
+    padding: 7px 15px; border-radius: 18px; font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+  }
+  .mkt-subtab:hover { border-color: rgba(79,209,255,0.55); }
+  .mkt-subtab.active { background: #4fd1ff; color: #04121c; border-color: #4fd1ff; }
+
+  .mkt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; }
+  .mkt-card {
+    background: rgba(8,16,28,0.75); border: 1px solid rgba(79,209,255,0.22);
+    border-radius: 12px; overflow: hidden;
+  }
+  .mkt-card-title {
+    padding: 10px 14px; border-bottom: 1px solid rgba(79,209,255,0.18);
+    font-size: 12px; font-weight: 800; color: #4fd1ff; letter-spacing: 0.5px;
+  }
+  .mkt-footnote { font-size: 10px; color: #52738f; line-height: 1.6; margin-top: 16px; max-width: 640px; }
 
   #footer { position: absolute; bottom: 26px; left: 26px; z-index: 2; color: #7fa8c9; font-size: 11px; letter-spacing: 0.5px; opacity: 0.75; }
 
@@ -83,7 +123,7 @@
   #countryCard .cc-saved-msg { font-size: 11px; color: #6fe08a; margin-left: 10px; opacity: 0; transition: opacity 0.3s; }
 
   #sidePanel {
-    position: absolute; top: 0; right: 0; height: 100%; width: 300px; max-width: 82vw;
+    position: absolute; top: 46px; right: 0; height: calc(100% - 46px); width: 300px; max-width: 82vw;
     background: rgba(6, 12, 22, 0.88); border-left: 1px solid rgba(79,209,255,0.25);
     z-index: 4; transition: transform 0.35s ease; backdrop-filter: blur(6px);
     display: flex; flex-direction: column;
@@ -124,6 +164,12 @@
 </head>
 <body>
 <div id="app">
+  <div id="topNav">
+    <button class="nav-tab active" id="navGlobo">🌍 Globo</button>
+    <button class="nav-tab" id="navMercado">📊 Mercado &amp; Indicadores</button>
+  </div>
+
+  <div id="globeView">
   <div class="hud-corner tl"></div>
   <div class="hud-corner tr"></div>
   <div class="hud-corner bl"></div>
@@ -180,6 +226,23 @@
   <div id="loading">CARREGANDO GLOBO…</div>
 
   <canvas id="globeCanvas"></canvas>
+  </div>
+
+  <div id="marketView">
+    <div class="mkt-subtabs" id="mktSubtabs">
+      <button class="mkt-subtab active" data-tab="indicadores">📊 Indicadores</button>
+      <button class="mkt-subtab" data-tab="cambio">💱 Câmbio</button>
+      <button class="mkt-subtab" data-tab="commodities">🛢 Commodities</button>
+      <button class="mkt-subtab" data-tab="cripto">₿ Cripto</button>
+      <button class="mkt-subtab" data-tab="noticias">📰 Notícias</button>
+      <button class="mkt-subtab" data-tab="calendario">📅 Calendário</button>
+    </div>
+    <div id="mktContent"></div>
+    <div class="mkt-footnote">
+      Widgets ao vivo da TradingView (dados reais de mercado). Alguns símbolos podem precisar de ajuste fino —
+      avise se algum indicador aparecer em branco.
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -671,9 +734,11 @@
 
   var autoRotateSpeed = 0.0011;
   var frameCount = 0;
+  var activeView = 'globe';
 
   function animate() {
     requestAnimationFrame(animate);
+    if (activeView !== 'globe') return; // economiza bateria/CPU quando a aba de mercado está aberta
     frameCount++;
 
     if (!isDragging) {
@@ -711,6 +776,199 @@
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
+  });
+
+  // -------------------------------------------------------------
+  // Navegação principal: Globo <-> Mercado & Indicadores
+  // -------------------------------------------------------------
+  var navGlobo = document.getElementById('navGlobo');
+  var navMercado = document.getElementById('navMercado');
+  var globeViewEl = document.getElementById('globeView');
+  var marketViewEl = document.getElementById('marketView');
+  var mktContent = document.getElementById('mktContent');
+  var currentMktTab = null;
+
+  navGlobo.addEventListener('click', function () {
+    activeView = 'globe';
+    navGlobo.classList.add('active');
+    navMercado.classList.remove('active');
+    globeViewEl.style.display = 'block';
+    marketViewEl.style.display = 'none';
+  });
+
+  navMercado.addEventListener('click', function () {
+    activeView = 'market';
+    navMercado.classList.add('active');
+    navGlobo.classList.remove('active');
+    globeViewEl.style.display = 'none';
+    marketViewEl.style.display = 'block';
+    if (!currentMktTab) showMarketTab('indicadores');
+  });
+
+  // -------------------------------------------------------------
+  // Widgets TradingView (dados reais, sem backend próprio)
+  // -------------------------------------------------------------
+  function mktCard(title, heightPx) {
+    var card = document.createElement('div');
+    card.className = 'mkt-card';
+    var head = document.createElement('div');
+    head.className = 'mkt-card-title';
+    head.textContent = title;
+    card.appendChild(head);
+    var body = document.createElement('div');
+    body.style.width = '100%';
+    body.style.height = heightPx + 'px';
+    card.appendChild(body);
+    return { card: card, body: body };
+  }
+
+  function mountTV(bodyEl, widgetType, config, heightPx) {
+    var script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-' + widgetType + '.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify(Object.assign({ width: '100%', height: heightPx }, config));
+    bodyEl.appendChild(script);
+  }
+
+  function marketOverviewConfig(tabs) {
+    return { colorTheme: 'dark', isTransparent: true, locale: 'br', showChart: true, tabs: tabs };
+  }
+
+  var MKT_TABS_BUILDERS = {
+    indicadores: function () {
+      var grid = document.createElement('div');
+      grid.className = 'mkt-grid';
+      var c1 = mktCard('📊 Índices Globais', 420);
+      mountTV(c1.body, 'market-overview', marketOverviewConfig([{
+        title: 'Índices', originalTitle: 'Índices', symbols: [
+          { s: 'FOREXCOM:SPXUSD', d: 'S&P 500' },
+          { s: 'FOREXCOM:NSXUSD', d: 'Nasdaq 100' },
+          { s: 'FOREXCOM:DJI', d: 'Dow Jones' },
+          { s: 'BMFBOVESPA:IBOV', d: 'Ibovespa' },
+          { s: 'INDEX:DEU40', d: 'DAX' },
+          { s: 'FOREXCOM:UKXGBP', d: 'FTSE 100' },
+          { s: 'INDEX:NKY', d: 'Nikkei 225' }
+        ]
+      }]), 420);
+      var c2 = mktCard('📋 Futuros', 420);
+      mountTV(c2.body, 'market-overview', marketOverviewConfig([{
+        title: 'Futuros', originalTitle: 'Futuros', symbols: [
+          { s: 'CME_MINI:ES1!', d: 'S&P 500 Futuros' },
+          { s: 'COMEX:GC1!', d: 'Ouro' },
+          { s: 'NYMEX:CL1!', d: 'Petróleo WTI' },
+          { s: 'CBOT:ZC1!', d: 'Milho' },
+          { s: 'CBOT:ZS1!', d: 'Soja' }
+        ]
+      }]), 420);
+      var c3 = mktCard('🏦 Títulos (Juros)', 340);
+      mountTV(c3.body, 'market-overview', marketOverviewConfig([{
+        title: 'Títulos', originalTitle: 'Títulos', symbols: [
+          { s: 'CBOT:ZB1!', d: 'US T-Bond' },
+          { s: 'CBOT:ZN1!', d: 'US 10Y Note' },
+          { s: 'EUREX:FGBL1!', d: 'Euro Bund' }
+        ]
+      }]), 340);
+      grid.appendChild(c1.card); grid.appendChild(c2.card); grid.appendChild(c3.card);
+      return grid;
+    },
+
+    cambio: function () {
+      var grid = document.createElement('div');
+      grid.className = 'mkt-grid';
+      var c1 = mktCard('💱 Cross Rates', 460);
+      mountTV(c1.body, 'forex-cross-rates', {
+        colorTheme: 'dark', isTransparent: true, locale: 'br',
+        currencies: ['USD', 'BRL', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF', 'AUD', 'CAD']
+      }, 460);
+      grid.appendChild(c1.card);
+      return grid;
+    },
+
+    commodities: function () {
+      var grid = document.createElement('div');
+      grid.className = 'mkt-grid';
+      var c1 = mktCard('🛢 Commodities', 460);
+      mountTV(c1.body, 'market-overview', marketOverviewConfig([{
+        title: 'Commodities', originalTitle: 'Commodities', symbols: [
+          { s: 'TVC:GOLD', d: 'Ouro' },
+          { s: 'TVC:SILVER', d: 'Prata' },
+          { s: 'TVC:USOIL', d: 'Petróleo WTI' },
+          { s: 'TVC:UKOIL', d: 'Brent' },
+          { s: 'CBOT:ZS1!', d: 'Soja' },
+          { s: 'CBOT:ZC1!', d: 'Milho' },
+          { s: 'CBOT:ZW1!', d: 'Trigo' },
+          { s: 'NYMEX:KC1!', d: 'Café' }
+        ]
+      }]), 460);
+      grid.appendChild(c1.card);
+      return grid;
+    },
+
+    cripto: function () {
+      var grid = document.createElement('div');
+      grid.className = 'mkt-grid';
+      var c1 = mktCard('₿ Criptomoedas', 460);
+      mountTV(c1.body, 'market-overview', marketOverviewConfig([{
+        title: 'Cripto', originalTitle: 'Cripto', symbols: [
+          { s: 'BITSTAMP:BTCUSD', d: 'Bitcoin' },
+          { s: 'BITSTAMP:ETHUSD', d: 'Ethereum' },
+          { s: 'BINANCE:BNBUSD', d: 'BNB' },
+          { s: 'BINANCE:SOLUSD', d: 'Solana' },
+          { s: 'BINANCE:XRPUSD', d: 'XRP' },
+          { s: 'BINANCE:ADAUSD', d: 'Cardano' },
+          { s: 'BINANCE:DOGEUSD', d: 'Dogecoin' },
+          { s: 'BINANCE:AVAXUSD', d: 'Avalanche' }
+        ]
+      }]), 460);
+      grid.appendChild(c1.card);
+      return grid;
+    },
+
+    noticias: function () {
+      var grid = document.createElement('div');
+      grid.className = 'mkt-grid';
+      var c1 = mktCard('🌍 Notícias Globais', 560);
+      mountTV(c1.body, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'all_symbols', displayMode: 'regular' }, 560);
+      var c2 = mktCard('📈 Ibovespa', 270);
+      mountTV(c2.body, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'symbol', symbol: 'BMFBOVESPA:IBOV', displayMode: 'compact' }, 270);
+      var c3 = mktCard('₿ Bitcoin', 270);
+      mountTV(c3.body, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'symbol', symbol: 'BITSTAMP:BTCUSD', displayMode: 'compact' }, 270);
+      grid.appendChild(c1.card);
+      var col = document.createElement('div');
+      col.style.display = 'flex'; col.style.flexDirection = 'column'; col.style.gap = '14px';
+      col.appendChild(c2.card); col.appendChild(c3.card);
+      grid.appendChild(col);
+      return grid;
+    },
+
+    calendario: function () {
+      var grid = document.createElement('div');
+      grid.className = 'mkt-grid';
+      grid.style.gridTemplateColumns = '1fr';
+      var c1 = mktCard('📅 Agenda Econômica', 600);
+      mountTV(c1.body, 'events', {
+        colorTheme: 'dark', isTransparent: true, locale: 'br',
+        importanceFilter: '0,1',
+        countryFilter: 'us,eu,gb,br,cn,jp,de,fr,it,ca,au,nz,ch,es'
+      }, 600);
+      grid.appendChild(c1.card);
+      return grid;
+    }
+  };
+
+  function showMarketTab(tabId) {
+    currentMktTab = tabId;
+    document.querySelectorAll('.mkt-subtab').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+    mktContent.innerHTML = '';
+    mktContent.appendChild(MKT_TABS_BUILDERS[tabId]());
+  }
+
+  document.getElementById('mktSubtabs').addEventListener('click', function (e) {
+    var btn = e.target.closest('.mkt-subtab');
+    if (!btn) return;
+    showMarketTab(btn.getAttribute('data-tab'));
   });
 })();
 </script>
