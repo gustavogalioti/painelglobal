@@ -924,13 +924,40 @@
   // Dados reais via scanner.tradingview.com — a MESMA API pública
   // que o /api/market2 do PAINEL PESSOAL usa por trás (sem chave).
   // Mesmos grupos e tickers, para ficar idêntico ao original.
+  //
+  // A TradingView não libera CORS para chamada direta do navegador,
+  // então tentamos direto primeiro e, se falhar, passamos por um
+  // proxy CORS público (com mais de uma opção de fallback).
   // ---------------------------------------------------------------
-  function tvScan(tickers) {
-    return fetch('https://scanner.tradingview.com/global/scan', {
+  var TV_SCAN_URL = 'https://scanner.tradingview.com/global/scan';
+  var TV_PROXY_URLS = [
+    TV_SCAN_URL,
+    'https://corsproxy.io/?url=' + encodeURIComponent(TV_SCAN_URL),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(TV_SCAN_URL),
+    'https://thingproxy.freeboard.io/fetch/' + TV_SCAN_URL
+  ];
+
+  function tvScanAttempt(url, body) {
+    return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbols: { tickers: tickers, query: { types: [] } }, columns: ['close', 'change', 'change_abs', 'volume', 'description'] })
-    }).then(function (r) { return r.json(); }).then(function (d) { return (d && d.data) || []; }).catch(function () { return []; });
+      body: body
+    }).then(function (r) {
+      if (!r.ok) throw new Error('status ' + r.status);
+      return r.json();
+    }).then(function (d) {
+      if (!d || !d.data) throw new Error('sem dados');
+      return d.data;
+    });
+  }
+
+  function tvScan(tickers) {
+    var body = JSON.stringify({ symbols: { tickers: tickers, query: { types: [] } }, columns: ['close', 'change', 'change_abs', 'volume', 'description'] });
+    var chain = Promise.reject();
+    TV_PROXY_URLS.forEach(function (url) {
+      chain = chain.catch(function () { return tvScanAttempt(url, body); });
+    });
+    return chain.catch(function () { return []; });
   }
 
   function makeRow(flag, name, sym, scanData) {
