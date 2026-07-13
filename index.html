@@ -48,7 +48,9 @@
   #marketView::-webkit-scrollbar { width: 8px; }
   #marketView::-webkit-scrollbar-thumb { background: rgba(79,209,255,0.3); border-radius: 4px; }
 
-  .mkt-subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .mkt-subtabs-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+  .mkt-subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0; }
+  .mkt-status { display: flex; align-items: center; gap: 8px; }
   .mkt-subtab {
     background: rgba(8,16,28,0.7); border: 1px solid rgba(79,209,255,0.25); color: #9fd6ff;
     padding: 7px 15px; border-radius: 18px; font-size: 12px; font-weight: 700;
@@ -255,18 +257,24 @@
   </div>
 
   <div id="marketView">
-    <div class="mkt-subtabs" id="mktSubtabs">
-      <button class="mkt-subtab active" data-tab="indicadores">📊 Indicadores</button>
-      <button class="mkt-subtab" data-tab="cambio">💱 Câmbio</button>
-      <button class="mkt-subtab" data-tab="commodities">🛢 Commodities</button>
-      <button class="mkt-subtab" data-tab="cripto">₿ Cripto</button>
-      <button class="mkt-subtab" data-tab="noticias">📰 Notícias</button>
-      <button class="mkt-subtab" data-tab="calendario">📅 Calendário</button>
+    <div class="mkt-subtabs-row">
+      <div class="mkt-subtabs" id="mktSubtabs">
+        <button class="mkt-subtab active" data-tab="indicadores">📊 Indicadores</button>
+        <button class="mkt-subtab" data-tab="cambio">💱 Câmbio</button>
+        <button class="mkt-subtab" data-tab="commodities">🛢 Commodities</button>
+        <button class="mkt-subtab" data-tab="cripto">₿ Cripto</button>
+        <button class="mkt-subtab" data-tab="noticias">📰 Notícias</button>
+        <button class="mkt-subtab" data-tab="calendario">📅 Calendário</button>
+      </div>
+      <div id="mktStatus" class="mkt-status">
+        <span id="mktStatusTime" class="mkt-updated">Carregando...</span>
+        <button id="mktStatusRefresh" class="mkt-card-refresh">↻</button>
+      </div>
     </div>
     <div id="mktContent"></div>
     <div class="mkt-footnote">
-      Widgets ao vivo da TradingView (dados reais de mercado). Alguns símbolos podem precisar de ajuste fino —
-      avise se algum indicador aparecer em branco.
+      Dados reais via API pública de scanner da TradingView (mesma fonte do seu painel original), sem chave e sem backend.
+      Notícias e Calendário usam widgets ao vivo da TradingView.
     </div>
   </div>
 </div>
@@ -913,274 +921,182 @@
   }
 
   // ---------------------------------------------------------------
-  // Câmbio real via Frankfurter.app (taxas do BCE, sem chave, CORS
-  // liberado) — pares no mesmo formato do painel original
+  // Dados reais via scanner.tradingview.com — a MESMA API pública
+  // que o /api/market2 do PAINEL PESSOAL usa por trás (sem chave).
+  // Mesmos grupos e tickers, para ficar idêntico ao original.
   // ---------------------------------------------------------------
-  var CAMBIO_BASE_SYMBOLS = 'BRL,EUR,GBP,JPY,CNY,CHF,CAD,MXN';
-  var PAIR_SPECS = [
-    { name: 'USD/BRL', flag: '🇺🇸', calc: function (r) { return r.BRL; } },
-    { name: 'EUR/BRL', flag: '🇪🇺', calc: function (r) { return r.BRL / r.EUR; } },
-    { name: 'GBP/BRL', flag: '🇬🇧', calc: function (r) { return r.BRL / r.GBP; } },
-    { name: 'JPY/BRL', flag: '🇯🇵', calc: function (r) { return r.BRL / r.JPY; } },
-    { name: 'EUR/USD', flag: '🇪🇺', calc: function (r) { return 1 / r.EUR; } },
-    { name: 'GBP/USD', flag: '🇬🇧', calc: function (r) { return 1 / r.GBP; } },
-    { name: 'USD/JPY', flag: '🇯🇵', calc: function (r) { return r.JPY; } },
-    { name: 'USD/CNY', flag: '🇨🇳', calc: function (r) { return r.CNY; } },
-    { name: 'USD/ARS', flag: '🇦🇷', calc: function () { return null; } }, // BCE não cobre peso argentino
-    { name: 'USD/CHF', flag: '🇨🇭', calc: function (r) { return r.CHF; } },
-    { name: 'USD/CAD', flag: '🇨🇦', calc: function (r) { return r.CAD; } },
-    { name: 'USD/MXN', flag: '🇲🇽', calc: function (r) { return r.MXN; } }
-  ];
+  function tvScan(tickers) {
+    return fetch('https://scanner.tradingview.com/global/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols: { tickers: tickers, query: { types: [] } }, columns: ['close', 'change', 'change_abs', 'volume', 'description'] })
+    }).then(function (r) { return r.json(); }).then(function (d) { return (d && d.data) || []; }).catch(function () { return []; });
+  }
 
-  function loadCambio(bodyEl, updatedSpan) {
-    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando câmbio real (Frankfurter/BCE)...</div>';
-    var todayUrl = 'https://api.frankfurter.dev/v1/latest?base=USD&symbols=' + CAMBIO_BASE_SYMBOLS;
-    fetch(todayUrl).then(function (r) { return r.json(); }).then(function (today) {
-      var d = new Date(); d.setDate(d.getDate() - 4);
-      var pastStr = d.toISOString().slice(0, 10);
-      return fetch('https://api.frankfurter.dev/v1/' + pastStr + '..?base=USD&symbols=' + CAMBIO_BASE_SYMBOLS)
-        .then(function (r) { return r.json(); })
-        .then(function (hist) {
-          var dates = Object.keys(hist.rates || {}).sort();
-          var prev = dates.length ? hist.rates[dates[0]] : null;
-          return { today: today.rates, prev: prev };
-        });
-    }).then(function (res) {
-      var rows = PAIR_SPECS.map(function (p) {
-        var val = p.calc(res.today);
-        if (val == null) return { flag: p.flag, name: p.name, last: '--', time: '' };
-        var row = { flag: p.flag, name: p.name, last: Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 }), time: nowHM() };
-        if (res.prev) {
-          var prevVal = p.calc(res.prev);
-          if (prevVal != null) {
-            var chg = val - prevVal;
-            var chgPct = (chg / prevVal) * 100;
-            row.chg = (chg >= 0 ? '+' : '') + chg.toFixed(4);
-            row.chgPct = fmtPctStr(chgPct);
-            row.up = chg >= 0;
-          }
-        }
-        return row;
-      });
-      renderMktTable(bodyEl, rows);
-      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
+  function makeRow(flag, name, sym, scanData) {
+    var row = scanData.filter(function (r) { return r.s === sym; })[0];
+    var d = (row && row.d) || [];
+    var price = d[0], pct = d[1], chg = d[2];
+    if (price == null) return { flag: flag, name: name, last: '--', time: '' };
+    var priceDec = price < 1 ? 4 : price < 10 ? 3 : price < 1000 ? 2 : 0;
+    var row2 = {
+      flag: flag, name: name,
+      last: Number(price).toLocaleString('pt-BR', { minimumFractionDigits: priceDec, maximumFractionDigits: priceDec }),
+      time: nowHM()
+    };
+    if (chg != null) row2.chg = (chg >= 0 ? '+' : '') + Number(chg).toLocaleString('pt-BR', { maximumFractionDigits: Math.abs(chg) < 10 ? 2 : 0 });
+    if (pct != null) { row2.chgPct = fmtPctStr(pct); row2.up = pct >= 0; }
+    return row2;
+  }
+
+  var ROW_SPECS = {
+    americas: [
+      ['🇧🇷', 'Ibovespa', 'BMFBOVESPA:IBOV'], ['🇺🇸', 'S&P 500', 'SP:SPX'], ['🇺🇸', 'Nasdaq', 'NASDAQ:NDX'],
+      ['🇺🇸', 'Dow Jones', 'DJ:DJI'], ['🇺🇸', 'Russell 2000', 'INDEX:RTY'], ['🇺🇸', 'S&P VIX', 'CBOE:VIX'],
+      ['🇨🇦', 'Toronto', 'TSX:TX60'], ['🇲🇽', 'México', 'BMV:IPC']
+    ],
+    europa: [
+      ['🇪🇺', 'Euro Stoxx 50', 'INDEX:SX5E'], ['🇬🇧', 'Inglaterra', 'LSE:UKX'], ['🇫🇷', 'França', 'EURONEXT:PX1'],
+      ['🇩🇪', 'Alemanha', 'XETR:DAX'], ['🇳🇱', 'Holanda', 'EURONEXT:AEX'], ['🇪🇸', 'Espanha', 'BME:IBC'],
+      ['🇮🇹', 'Itália', 'MIL:FTSEMIB'], ['🇨🇭', 'Suíça', 'SMI:SMI']
+    ],
+    asia: [
+      ['🇯🇵', 'Japão (Nikkei)', 'TVC:NI225'], ['🇭🇰', 'Hong Kong', 'HSI:HSI'], ['🇰🇷', 'Coreia do Sul', 'KRX:KOSPI'],
+      ['🇮🇳', 'Índia', 'NSE:NIFTY50'], ['🇦🇺', 'Austrália', 'ASX:XJO'], ['🇸🇬', 'Singapura', 'SGX:STI']
+    ],
+    futuros: [
+      ['🇺🇸', 'S&P 500 Fut', 'CME_MINI:ES1!'], ['🇺🇸', 'Nasdaq Fut', 'CME_MINI:NQ1!'], ['🇺🇸', 'Dow Jones Fut', 'CBOT_MINI:YM1!'],
+      ['🇧🇷', 'Ibovespa Fut', 'BMFBOVESPA:WIN1!'], ['🟡', 'Ouro Fut', 'COMEX:GC1!'], ['⚪', 'Prata Fut', 'COMEX:SI1!'],
+      ['🛢', 'Petróleo WTI', 'NYMEX:CL1!'], ['🛢', 'Petróleo Brent', 'NYMEX:BZ1!']
+    ],
+    cambio: [
+      ['🇺🇸', 'USD/BRL', 'FX:USDBRL'], ['🇪🇺', 'EUR/BRL', 'FX:EURBRL'], ['🇬🇧', 'GBP/BRL', 'FX:GBPBRL'], ['🇯🇵', 'JPY/BRL', 'FX:EURJPY'],
+      ['🇪🇺', 'EUR/USD', 'FX:EURUSD'], ['🇬🇧', 'GBP/USD', 'FX:GBPUSD'], ['🇯🇵', 'USD/JPY', 'FX:USDJPY'], ['🇨🇳', 'USD/CNY', 'FX:USDCNY'],
+      ['🇦🇷', 'USD/ARS', 'FX:USDARS'], ['🇨🇭', 'USD/CHF', 'FX:USDCHF'], ['🇨🇦', 'USD/CAD', 'FX:USDCAD'], ['🇲🇽', 'USD/MXN', 'FX:USDMXN']
+    ],
+    commodities: [
+      ['🟡', 'Ouro', 'COMEX:GC1!'], ['⚪', 'Prata', 'COMEX:SI1!'], ['🛢', 'WTI', 'NYMEX:CL1!'], ['🛢', 'Brent', 'NYMEX:BZ1!'],
+      ['🟠', 'Cobre', 'COMEX:HG1!'], ['🔥', 'Gás Natural', 'NYMEX:NG1!'], ['🌱', 'Soja', 'CBOT:ZS1!'], ['🌽', 'Milho', 'CBOT:ZC1!'], ['🌾', 'Trigo', 'CBOT:ZW1!']
+    ],
+    cripto: [
+      ['₿', 'Bitcoin', 'BITSTAMP:BTCUSD'], ['Ξ', 'Ethereum', 'BITSTAMP:ETHUSD'], ['🔶', 'BNB', 'BINANCE:BNBUSDT'], ['◎', 'Solana', 'BINANCE:SOLUSDT'],
+      ['✕', 'XRP', 'BITSTAMP:XRPUSD'], ['₳', 'Cardano', 'BINANCE:ADAUSDT'], ['Ð', 'Dogecoin', 'BINANCE:DOGEUSDT'], ['🔺', 'Avalanche', 'BINANCE:AVAXUSDT']
+    ]
+  };
+
+  function buildRows(groupKey, scanData) {
+    return ROW_SPECS[groupKey].map(function (s) { return makeRow(s[0], s[1], s[2], scanData); });
+  }
+
+  var marketCache = null;
+  var marketLoading = false;
+  var marketListeners = [];
+  var persistentMarketListeners = [];
+
+  function loadAllMarketData(force) {
+    if (marketLoading) return;
+    if (marketCache && !force) {
+      marketListeners.forEach(function (fn) { fn(marketCache); });
+      persistentMarketListeners.forEach(function (fn) { fn(marketCache); });
+      return;
+    }
+    marketLoading = true;
+    Promise.all([
+      tvScan(ROW_SPECS.americas.map(function (s) { return s[2]; })),
+      tvScan(ROW_SPECS.europa.map(function (s) { return s[2]; })),
+      tvScan(ROW_SPECS.asia.map(function (s) { return s[2]; })),
+      tvScan(ROW_SPECS.futuros.map(function (s) { return s[2]; })),
+      tvScan(ROW_SPECS.cambio.map(function (s) { return s[2]; })),
+      tvScan(ROW_SPECS.commodities.map(function (s) { return s[2]; })),
+      tvScan(ROW_SPECS.cripto.map(function (s) { return s[2]; }))
+    ]).then(function (res) {
+      marketCache = { americas: res[0], europa: res[1], asia: res[2], futuros: res[3], cambio: res[4], commodities: res[5], cripto: res[6], time: nowHM() };
+      marketLoading = false;
+      marketListeners.forEach(function (fn) { fn(marketCache); });
+      persistentMarketListeners.forEach(function (fn) { fn(marketCache); });
     }).catch(function () {
-      bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar o câmbio agora. Toque em ↻ para tentar de novo.</div>';
+      marketLoading = false;
+      marketListeners.forEach(function (fn) { fn(null); });
+      persistentMarketListeners.forEach(function (fn) { fn(null); });
     });
   }
 
-  // ---------------------------------------------------------------
-  // Cripto real via CoinGecko (público, sem chave, CORS liberado)
-  // ---------------------------------------------------------------
-  var CRIPTO_IDS = [
-    { id: 'bitcoin', name: 'Bitcoin', flag: '₿' },
-    { id: 'ethereum', name: 'Ethereum', flag: 'Ξ' },
-    { id: 'binancecoin', name: 'BNB', flag: '🟡' },
-    { id: 'solana', name: 'Solana', flag: '◎' },
-    { id: 'ripple', name: 'XRP', flag: '✕' },
-    { id: 'cardano', name: 'Cardano', flag: '₳' },
-    { id: 'dogecoin', name: 'Dogecoin', flag: '🐶' },
-    { id: 'avalanche-2', name: 'Avalanche', flag: '🔺' }
-  ];
-
-  function loadCripto(bodyEl, updatedSpan) {
-    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando cripto real (CoinGecko)...</div>';
-    var ids = CRIPTO_IDS.map(function (c) { return c.id; }).join(',');
-    fetch('https://api.coingecko.com/api/v3/simple/price?ids=' + ids + '&vs_currencies=usd&include_24hr_change=true')
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var rows = CRIPTO_IDS.map(function (c) {
-          var d = data[c.id] || {};
-          var chgPct = d.usd_24h_change;
-          var row = { flag: c.flag, name: c.name, last: d.usd != null ? '$ ' + Number(d.usd).toLocaleString('pt-BR', { maximumFractionDigits: d.usd < 1 ? 6 : 2 }) : '--', time: nowHM() };
-          if (chgPct != null) {
-            row.chgPct = fmtPctStr(chgPct);
-            row.up = chgPct >= 0;
-          }
-          return row;
-        });
-        renderMktTable(bodyEl, rows);
-        if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
-      }).catch(function () {
-        bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar as cotações agora. Toque em ↻ para tentar de novo.</div>';
-      });
+  function onMarketData(fn) {
+    marketListeners.push(fn);
+    loadAllMarketData(false);
   }
 
-  // ---------------------------------------------------------------
-  // Índices & commodities reais via Yahoo Finance, através de um
-  // proxy público (o Yahoo não libera CORS direto do navegador).
-  // É uma rota não-oficial: pode falhar às vezes — nesses casos a
-  // linha aparece como "--", igual ao seu painel original quando
-  // a cotação não vem.
-  // ---------------------------------------------------------------
-  function fetchYahooQuotes(symbols) {
-    var target = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + encodeURIComponent(symbols.join(','));
-    var proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target);
-    return fetch(proxied).then(function (r) { return r.json(); }).then(function (d) {
-      var map = {};
-      ((d.quoteResponse && d.quoteResponse.result) || []).forEach(function (q) { map[q.symbol] = q; });
-      return map;
-    });
-  }
-
-  function fmtYahooTime(ts) {
-    if (!ts) return '';
-    return new Date(ts * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function buildRowsFromQuotes(quoteMap, items) {
-    return items.map(function (it) {
-      var q = quoteMap[it.symbol];
-      if (!q || q.regularMarketPrice == null) return { flag: it.flag, name: it.name, last: '--', time: '' };
-      var last = q.regularMarketPrice, chg = q.regularMarketChange, chgPct = q.regularMarketChangePercent;
-      return {
-        flag: it.flag, name: it.name,
-        last: Number(last).toLocaleString('pt-BR', { maximumFractionDigits: 2 }),
-        chg: chg != null ? (chg >= 0 ? '+' : '') + Number(chg).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : null,
-        chgPct: chgPct != null ? fmtPctStr(chgPct) : null,
-        up: chgPct != null ? chgPct >= 0 : null,
-        time: fmtYahooTime(q.regularMarketTime)
-      };
-    });
-  }
-
-  var INDICADORES_GROUPS = [
-    { title: '🌎 Américas', items: [
-      { symbol: '^BVSP', name: 'Ibovespa', flag: '🇧🇷' },
-      { symbol: '^GSPC', name: 'S&P 500', flag: '🇺🇸' },
-      { symbol: '^IXIC', name: 'Nasdaq', flag: '🇺🇸' },
-      { symbol: '^DJI', name: 'Dow Jones', flag: '🇺🇸' },
-      { symbol: '^RUT', name: 'Russell 2000', flag: '🇺🇸' },
-      { symbol: '^VIX', name: 'S&P VIX', flag: '🇺🇸' },
-      { symbol: '^GSPTSE', name: 'Toronto', flag: '🇨🇦' },
-      { symbol: '^MXX', name: 'México', flag: '🇲🇽' }
-    ] },
-    { title: '🇪🇺 Europa', items: [
-      { symbol: '^STOXX50E', name: 'Euro Stoxx 50', flag: '🇪🇺' },
-      { symbol: '^FTSE', name: 'Inglaterra', flag: '🇬🇧' },
-      { symbol: '^FCHI', name: 'França', flag: '🇫🇷' },
-      { symbol: '^GDAXI', name: 'Alemanha', flag: '🇩🇪' },
-      { symbol: '^AEX', name: 'Holanda', flag: '🇳🇱' },
-      { symbol: '^IBEX', name: 'Espanha', flag: '🇪🇸' },
-      { symbol: 'FTSEMIB.MI', name: 'Itália', flag: '🇮🇹' },
-      { symbol: '^SSMI', name: 'Suíça', flag: '🇨🇭' }
-    ] },
-    { title: '🌏 Ásia & Oceania', items: [
-      { symbol: '^N225', name: 'Japão (Nikkei)', flag: '🇯🇵' },
-      { symbol: '^HSI', name: 'Hong Kong', flag: '🇭🇰' },
-      { symbol: '^KS11', name: 'Coreia do Sul', flag: '🇰🇷' },
-      { symbol: '^BSESN', name: 'Índia', flag: '🇮🇳' },
-      { symbol: '^AXJO', name: 'Austrália', flag: '🇦🇺' },
-      { symbol: '^STI', name: 'Singapura', flag: '🇸🇬' }
-    ] },
-    { title: '📋 Futuros', items: [
-      { symbol: 'ES=F', name: 'S&P 500 Futuros', flag: '📈' },
-      { symbol: 'GC=F', name: 'Ouro', flag: '🥇' },
-      { symbol: 'CL=F', name: 'Petróleo WTI', flag: '🛢' },
-      { symbol: 'ZC=F', name: 'Milho', flag: '🌽' },
-      { symbol: 'ZS=F', name: 'Soja', flag: '🌱' }
-    ] }
-  ];
-
-  var COMMODITIES_ITEMS = [
-    { symbol: 'GC=F', name: 'Ouro', flag: '🥇' },
-    { symbol: 'SI=F', name: 'Prata', flag: '🥈' },
-    { symbol: 'CL=F', name: 'Petróleo WTI', flag: '🛢' },
-    { symbol: 'BZ=F', name: 'Brent', flag: '🛢' },
-    { symbol: 'ZS=F', name: 'Soja', flag: '🌱' },
-    { symbol: 'ZC=F', name: 'Milho', flag: '🌽' },
-    { symbol: 'ZW=F', name: 'Trigo', flag: '🌾' },
-    { symbol: 'KC=F', name: 'Café', flag: '☕' }
-  ];
-
-  function loadIndicadores(containerEl, updatedSpan) {
-    containerEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando índices...</div>';
-    var allSymbols = [];
-    INDICADORES_GROUPS.forEach(function (g) { g.items.forEach(function (it) { allSymbols.push(it.symbol); }); });
-    fetchYahooQuotes(allSymbols).then(function (quoteMap) {
-      containerEl.innerHTML = '';
-      INDICADORES_GROUPS.forEach(function (g) {
-        var card = document.createElement('div');
-        card.className = 'mkt-card';
-        var head = document.createElement('div');
-        head.className = 'mkt-card-title';
-        head.textContent = g.title;
-        card.appendChild(head);
-        var body = document.createElement('div');
-        card.appendChild(body);
-        renderMktTable(body, buildRowsFromQuotes(quoteMap, g.items));
-        containerEl.appendChild(card);
-      });
-      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
-    }).catch(function () {
-      containerEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar os índices agora (fonte instável). Toque em ↻ para tentar de novo.</div>';
-    });
-  }
-
-  function loadCommoditiesTable(bodyEl, updatedSpan) {
-    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando commodities...</div>';
-    fetchYahooQuotes(COMMODITIES_ITEMS.map(function (i) { return i.symbol; })).then(function (quoteMap) {
-      renderMktTable(bodyEl, buildRowsFromQuotes(quoteMap, COMMODITIES_ITEMS));
-      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
-    }).catch(function () {
-      bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar agora. Toque em ↻ para tentar de novo.</div>';
-    });
+  function renderGroupCard(containerEl, title, groupKey, cache) {
+    var card = document.createElement('div');
+    card.className = 'mkt-card';
+    var head = document.createElement('div');
+    head.className = 'mkt-card-title';
+    head.textContent = title;
+    card.appendChild(head);
+    var body = document.createElement('div');
+    card.appendChild(body);
+    if (!cache) {
+      body.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
+    } else {
+      renderMktTable(body, buildRows(groupKey, cache[groupKey]));
+    }
+    containerEl.appendChild(card);
   }
 
   var MKT_TABS_BUILDERS = {
     indicadores: function () {
       var wrapper = document.createElement('div');
-      var headRow = document.createElement('div');
-      headRow.className = 'mkt-card-head-row';
-      headRow.style.marginBottom = '12px';
-      var titleSpan = document.createElement('span');
-      titleSpan.style.fontSize = '13px'; titleSpan.style.color = '#4fd1ff'; titleSpan.style.fontWeight = '800';
-      titleSpan.textContent = '📊 Índices Globais';
-      var right = document.createElement('span');
-      var updatedSpan = document.createElement('span');
-      updatedSpan.className = 'mkt-updated';
-      var btn = document.createElement('button');
-      btn.className = 'mkt-card-refresh';
-      btn.textContent = '↻';
-      right.appendChild(updatedSpan); right.appendChild(btn);
-      headRow.appendChild(titleSpan); headRow.appendChild(right);
-      wrapper.appendChild(headRow);
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
       wrapper.appendChild(grid);
-      btn.addEventListener('click', function () { loadIndicadores(grid, updatedSpan); });
-      loadIndicadores(grid, updatedSpan);
+      onMarketData(function (cache) {
+        grid.innerHTML = '';
+        if (!cache) { grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar agora. Toque em ↻ para tentar de novo.</div>'; return; }
+        renderGroupCard(grid, '🌎 Américas', 'americas', cache);
+        renderGroupCard(grid, '🇪🇺 Europa', 'europa', cache);
+        renderGroupCard(grid, '🌏 Ásia & Oceania', 'asia', cache);
+        renderGroupCard(grid, '📋 Futuros', 'futuros', cache);
+      });
       return wrapper;
     },
 
     cambio: function () {
+      var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
-      grid.style.gridTemplateColumns = '1fr';
-      var c = mktCardWithRefresh('💱 Câmbio', function (updatedSpan) { loadCambio(c.body, updatedSpan); });
-      grid.appendChild(c.card);
-      loadCambio(c.body, c.updatedSpan);
-      return grid;
+      grid.className = 'mkt-grid'; grid.style.gridTemplateColumns = '1fr';
+      wrapper.appendChild(grid);
+      onMarketData(function (cache) {
+        grid.innerHTML = '';
+        if (!cache) { grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar agora. Toque em ↻ para tentar de novo.</div>'; return; }
+        renderGroupCard(grid, '💱 Câmbio', 'cambio', cache);
+      });
+      return wrapper;
     },
 
     commodities: function () {
+      var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
-      grid.style.gridTemplateColumns = '1fr';
-      var c = mktCardWithRefresh('🛢 Commodities', function (updatedSpan) { loadCommoditiesTable(c.body, updatedSpan); });
-      grid.appendChild(c.card);
-      loadCommoditiesTable(c.body, c.updatedSpan);
-      return grid;
+      grid.className = 'mkt-grid'; grid.style.gridTemplateColumns = '1fr';
+      wrapper.appendChild(grid);
+      onMarketData(function (cache) {
+        grid.innerHTML = '';
+        if (!cache) { grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar agora. Toque em ↻ para tentar de novo.</div>'; return; }
+        renderGroupCard(grid, '🛢 Commodities', 'commodities', cache);
+      });
+      return wrapper;
     },
 
     cripto: function () {
+      var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
-      grid.style.gridTemplateColumns = '1fr';
-      var c = mktCardWithRefresh('₿ Criptomoedas (USD)', function (updatedSpan) { loadCripto(c.body, updatedSpan); });
-      grid.appendChild(c.card);
-      loadCripto(c.body, c.updatedSpan);
-      return grid;
+      grid.className = 'mkt-grid'; grid.style.gridTemplateColumns = '1fr';
+      wrapper.appendChild(grid);
+      onMarketData(function (cache) {
+        grid.innerHTML = '';
+        if (!cache) { grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#ff6b6b;">Não foi possível carregar agora. Toque em ↻ para tentar de novo.</div>'; return; }
+        renderGroupCard(grid, '₿ Criptomoedas', 'cripto', cache);
+      });
+      return wrapper;
     },
 
     noticias: function () {
@@ -1217,6 +1133,7 @@
 
   function showMarketTab(tabId) {
     currentMktTab = tabId;
+    marketListeners = []; // evita listeners acumulando de abas anteriores
     document.querySelectorAll('.mkt-subtab').forEach(function (btn) {
       btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
@@ -1229,7 +1146,22 @@
     if (!btn) return;
     showMarketTab(btn.getAttribute('data-tab'));
   });
+
+  // Status "Atualizado HH:MM" + botão de atualizar, ao lado das sub-abas
+  var mktStatus = document.getElementById('mktStatus');
+  if (mktStatus) {
+    var mktStatusTime = document.getElementById('mktStatusTime');
+    var mktStatusRefresh = document.getElementById('mktStatusRefresh');
+    mktStatusRefresh.addEventListener('click', function () {
+      loadAllMarketData(true);
+    });
+    persistentMarketListeners.push(function (cache) {
+      mktStatusTime.textContent = cache ? 'Atualizado ' + cache.time : 'Falha ao atualizar';
+    });
+  }
 })();
 </script>
+
+
 </body>
 </html>
