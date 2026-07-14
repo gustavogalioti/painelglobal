@@ -1162,12 +1162,18 @@
     cambio: function () {
       var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid'; grid.style.gridTemplateColumns = '1fr';
+      grid.className = 'mkt-grid';
       grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
       wrapper.appendChild(grid);
       onMarketData(function (cache) {
         grid.innerHTML = '';
         renderGroupCard(grid, '💱 Câmbio', 'cambio', cache);
+        var cr = mktCard('📊 Cross Rates — TradingView', 460);
+        mountTV(cr.body, 'forex-cross-rates', {
+          colorTheme: 'dark', isTransparent: true, locale: 'br',
+          currencies: ['USD', 'BRL', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF', 'AUD', 'CAD']
+        }, 460);
+        grid.appendChild(cr.card);
       });
       return wrapper;
     },
@@ -1175,12 +1181,16 @@
     commodities: function () {
       var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid'; grid.style.gridTemplateColumns = '1fr';
+      grid.className = 'mkt-grid';
       grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
       wrapper.appendChild(grid);
       onMarketData(function (cache) {
         grid.innerHTML = '';
         renderGroupCard(grid, '🛢 Commodities', 'commodities', cache);
+        var tv = mktCard('📊 TradingView', 460);
+        var symbols = ROW_SPECS.commodities.map(function (s) { return { s: s[2], d: s[1] }; });
+        mountTV(tv.body, 'market-overview', marketOverviewConfig([{ title: 'Commodities', originalTitle: 'Commodities', symbols: symbols }]), 460);
+        grid.appendChild(tv.card);
       });
       return wrapper;
     },
@@ -1188,12 +1198,16 @@
     cripto: function () {
       var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid'; grid.style.gridTemplateColumns = '1fr';
+      grid.className = 'mkt-grid';
       grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
       wrapper.appendChild(grid);
       onMarketData(function (cache) {
         grid.innerHTML = '';
         renderGroupCard(grid, '₿ Criptomoedas', 'cripto', cache);
+        var tv = mktCard('📊 TradingView', 460);
+        var symbols = ROW_SPECS.cripto.map(function (s) { return { s: s[2], d: s[1] }; });
+        mountTV(tv.body, 'market-overview', marketOverviewConfig([{ title: 'Cripto', originalTitle: 'Cripto', symbols: symbols }]), 460);
+        grid.appendChild(tv.card);
       });
       return wrapper;
     },
