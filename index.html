@@ -1075,6 +1075,73 @@
     containerEl.appendChild(card);
   }
 
+  // ---------------------------------------------------------------
+  // Notícias reais em português: mesma rota /api/gnews do seu
+  // PAINEL PESSOAL (também com CORS aberto), que busca no Google
+  // News em pt-BR e devolve título/link/data/fonte já limpos.
+  // ---------------------------------------------------------------
+  var NEWS_API_URL = 'https://painel-controle-pearl.vercel.app/api/gnews';
+
+  function fmtNewsDate(dateStr) {
+    if (!dateStr) return '';
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderNewsList(bodyEl, items) {
+    bodyEl.innerHTML = '';
+    if (!items || items.length === 0) {
+      bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Nenhuma notícia encontrada agora.</div>';
+      return;
+    }
+    var list = document.createElement('div');
+    items.forEach(function (it) {
+      var row = document.createElement('a');
+      row.href = it.link || '#';
+      row.target = '_blank';
+      row.rel = 'noopener noreferrer';
+      row.style.display = 'block';
+      row.style.padding = '12px 14px';
+      row.style.borderTop = '1px solid rgba(79,209,255,0.1)';
+      row.style.textDecoration = 'none';
+      row.style.color = '#e8f4ff';
+      row.innerHTML =
+        '<div style="font-size:12px;font-weight:700;line-height:1.4;margin-bottom:4px;">' + it.title + '</div>' +
+        '<div style="font-size:10px;color:#7fa8c9;">' + (it.src || '') + (it.src && it.date ? ' · ' : '') + fmtNewsDate(it.date) + '</div>';
+      list.appendChild(row);
+    });
+    bodyEl.appendChild(list);
+  }
+
+  function loadNoticias(bodyEl, updatedSpan) {
+    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando notícias...</div>';
+    var queries = ['economia', 'mercado financeiro'];
+    Promise.all(queries.map(function (q) {
+      return fetchWithTimeout(NEWS_API_URL + '?mode=search&q=' + encodeURIComponent(q), {}, 8000)
+        .then(function (r) { return r.json(); })
+        .then(function (d) { return d.items || []; })
+        .catch(function () { return []; });
+    })).then(function (results) {
+      var seen = {};
+      var merged = [];
+      results.forEach(function (list) {
+        list.forEach(function (it) {
+          if (!seen[it.title]) { seen[it.title] = true; merged.push(it); }
+        });
+      });
+      merged.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
+      if (merged.length === 0) throw new Error('vazio');
+      renderNewsList(bodyEl, merged.slice(0, 16));
+      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
+    }).catch(function () {
+      // Fallback: widget de notícias da TradingView (não usa fetch)
+      bodyEl.innerHTML = '';
+      mountTV(bodyEl, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'all_symbols', displayMode: 'regular' }, 480);
+      if (updatedSpan) updatedSpan.textContent = 'Modo widget (rede bloqueou dados diretos)';
+    });
+  }
+
   var MKT_TABS_BUILDERS = {
     indicadores: function () {
       var wrapper = document.createElement('div');
@@ -1132,36 +1199,40 @@
     },
 
     noticias: function () {
+      var wrapper = document.createElement('div');
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
-      var c1 = mktCard('🌍 Notícias Globais', 560);
-      mountTV(c1.body, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'all_symbols', displayMode: 'regular' }, 560);
-      var c2 = mktCard('📈 Ibovespa', 270);
-      mountTV(c2.body, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'symbol', symbol: 'BMFBOVESPA:IBOV', displayMode: 'compact' }, 270);
-      var c3 = mktCard('₿ Bitcoin', 270);
-      mountTV(c3.body, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'symbol', symbol: 'BITSTAMP:BTCUSD', displayMode: 'compact' }, 270);
-      grid.appendChild(c1.card);
-      var col = document.createElement('div');
-      col.style.display = 'flex'; col.style.flexDirection = 'column'; col.style.gap = '14px';
-      col.appendChild(c2.card); col.appendChild(c3.card);
-      grid.appendChild(col);
-      return grid;
+      grid.style.gridTemplateColumns = '1fr';
+      wrapper.appendChild(grid);
+      var c = mktCardWithRefresh('📰 Notícias Econômicas (PT-BR)', function (updatedSpan) { loadNoticias(c.body, updatedSpan); });
+      grid.appendChild(c.card);
+      loadNoticias(c.body, c.updatedSpan);
+      return wrapper;
     },
 
     calendario: function () {
       var grid = document.createElement('div');
       grid.className = 'mkt-grid';
       grid.style.gridTemplateColumns = '1fr';
-      var c1 = mktCard('📅 Agenda Econômica', 600);
-      mountTV(c1.body, 'events', {
-        colorTheme: 'dark', isTransparent: true, locale: 'br',
-        importanceFilter: '0,1',
-        countryFilter: 'us,eu,gb,br,cn,jp,de,fr,it,ca,au,nz,ch,es'
-      }, 600);
-      grid.appendChild(c1.card);
+      var card = document.createElement('div');
+      card.className = 'mkt-card';
+      var head = document.createElement('div');
+      head.className = 'mkt-card-title';
+      head.textContent = '📅 Calendário Econômico — Investing.com';
+      card.appendChild(head);
+      var iframe = document.createElement('iframe');
+      iframe.src = 'https://sslecal2.investing.com/?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&features=datepicker,timezone&countries=25,32,6,37,72,22,17,39,14,10,35,43,56,36,110,11,26,12,4,5&calType=week&timeZone=8&lang=12';
+      iframe.width = '100%';
+      iframe.height = '620';
+      iframe.frameBorder = '0';
+      iframe.style.border = 'none';
+      iframe.style.display = 'block';
+      card.appendChild(iframe);
+      grid.appendChild(card);
       return grid;
     }
   };
+
 
   function showMarketTab(tabId) {
     currentMktTab = tabId;
