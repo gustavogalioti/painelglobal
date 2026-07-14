@@ -273,8 +273,8 @@
     </div>
     <div id="mktContent"></div>
     <div class="mkt-footnote">
-      Dados reais via API pública de scanner da TradingView (mesma fonte do seu painel original), sem chave e sem backend.
-      Notícias e Calendário usam widgets ao vivo da TradingView.
+      Dados reais: fonte principal é sua própria API (painel-controle-pearl.vercel.app), com fallback automático
+      para a API pública da TradingView caso a principal não responda. Notícias e Calendário usam widgets ao vivo da TradingView.
     </div>
   </div>
 </div>
@@ -921,28 +921,55 @@
   }
 
   // ---------------------------------------------------------------
-  // Dados reais via scanner.tradingview.com — a MESMA API pública
-  // que o /api/market2 do PAINEL PESSOAL usa por trás (sem chave).
-  // Mesmos grupos e tickers, para ficar idêntico ao original.
-  //
-  // A TradingView não libera CORS para chamada direta do navegador,
-  // então tentamos direto primeiro e, se falhar, passamos por um
-  // proxy CORS público (com mais de uma opção de fallback).
+  // Dados reais, com DUAS fontes independentes:
+  // 1) Sua API real do PAINEL PESSOAL (/api/market2) — fonte
+  //    principal, exatamente como no original.
+  // 2) Se por qualquer motivo ela não responder nesse navegador/rede,
+  //    cai automaticamente para a API pública da própria TradingView
+  //    (com proxy CORS), como plano B — mesmos tickers.
   // ---------------------------------------------------------------
+  var MARKET_API_URL = 'https://painel-controle-pearl.vercel.app/api/market2';
   var TV_SCAN_URL = 'https://scanner.tradingview.com/global/scan';
   var TV_PROXY_URLS = [
     TV_SCAN_URL,
     'https://corsproxy.io/?url=' + encodeURIComponent(TV_SCAN_URL),
-    'https://api.allorigins.win/raw?url=' + encodeURIComponent(TV_SCAN_URL),
     'https://thingproxy.freeboard.io/fetch/' + TV_SCAN_URL
   ];
 
+  function fetchWithTimeout(url, opts, ms) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; reject(new Error('timeout')); } }, ms || 8000);
+      fetch(url, opts).then(function (r) {
+        if (done) return; done = true; clearTimeout(t); resolve(r);
+      }).catch(function (e) {
+        if (done) return; done = true; clearTimeout(t); reject(e);
+      });
+    });
+  }
+
+  function fetchOwnApi() {
+    return fetchWithTimeout(MARKET_API_URL, {}, 8000).then(function (r) {
+      if (!r.ok) throw new Error('status ' + r.status);
+      return r.json();
+    }).then(function (d) {
+      if (d.error) throw new Error(d.error);
+      return d; // já vem no formato {americas:[{flag,name,price,chg,pct,up}], ...}
+    });
+  }
+
+  var ROW_SPECS = {
+    americas: [['🇧🇷', 'Ibovespa', 'BMFBOVESPA:IBOV'], ['🇺🇸', 'S&P 500', 'SP:SPX'], ['🇺🇸', 'Nasdaq', 'NASDAQ:NDX'], ['🇺🇸', 'Dow Jones', 'DJ:DJI'], ['🇺🇸', 'Russell 2000', 'INDEX:RTY'], ['🇺🇸', 'S&P VIX', 'CBOE:VIX'], ['🇨🇦', 'Toronto', 'TSX:TX60'], ['🇲🇽', 'México', 'BMV:IPC']],
+    europa: [['🇪🇺', 'Euro Stoxx 50', 'INDEX:SX5E'], ['🇬🇧', 'Inglaterra', 'LSE:UKX'], ['🇫🇷', 'França', 'EURONEXT:PX1'], ['🇩🇪', 'Alemanha', 'XETR:DAX'], ['🇳🇱', 'Holanda', 'EURONEXT:AEX'], ['🇪🇸', 'Espanha', 'BME:IBC'], ['🇮🇹', 'Itália', 'MIL:FTSEMIB'], ['🇨🇭', 'Suíça', 'SMI:SMI']],
+    asia: [['🇯🇵', 'Japão (Nikkei)', 'TVC:NI225'], ['🇭🇰', 'Hong Kong', 'HSI:HSI'], ['🇰🇷', 'Coreia do Sul', 'KRX:KOSPI'], ['🇮🇳', 'Índia', 'NSE:NIFTY50'], ['🇦🇺', 'Austrália', 'ASX:XJO'], ['🇸🇬', 'Singapura', 'SGX:STI']],
+    futuros: [['🇺🇸', 'S&P 500 Fut', 'CME_MINI:ES1!'], ['🇺🇸', 'Nasdaq Fut', 'CME_MINI:NQ1!'], ['🇺🇸', 'Dow Jones Fut', 'CBOT_MINI:YM1!'], ['🇧🇷', 'Ibovespa Fut', 'BMFBOVESPA:WIN1!'], ['🟡', 'Ouro Fut', 'COMEX:GC1!'], ['⚪', 'Prata Fut', 'COMEX:SI1!'], ['🛢', 'Petróleo WTI', 'NYMEX:CL1!'], ['🛢', 'Petróleo Brent', 'NYMEX:BZ1!']],
+    cambio: [['🇺🇸', 'USD/BRL', 'FX:USDBRL'], ['🇪🇺', 'EUR/BRL', 'FX:EURBRL'], ['🇬🇧', 'GBP/BRL', 'FX:GBPBRL'], ['🇯🇵', 'JPY/BRL', 'FX:EURJPY'], ['🇪🇺', 'EUR/USD', 'FX:EURUSD'], ['🇬🇧', 'GBP/USD', 'FX:GBPUSD'], ['🇯🇵', 'USD/JPY', 'FX:USDJPY'], ['🇨🇳', 'USD/CNY', 'FX:USDCNY'], ['🇦🇷', 'USD/ARS', 'FX:USDARS'], ['🇨🇭', 'USD/CHF', 'FX:USDCHF'], ['🇨🇦', 'USD/CAD', 'FX:USDCAD'], ['🇲🇽', 'USD/MXN', 'FX:USDMXN']],
+    commodities: [['🟡', 'Ouro', 'COMEX:GC1!'], ['⚪', 'Prata', 'COMEX:SI1!'], ['🛢', 'WTI', 'NYMEX:CL1!'], ['🛢', 'Brent', 'NYMEX:BZ1!'], ['🟠', 'Cobre', 'COMEX:HG1!'], ['🔥', 'Gás Natural', 'NYMEX:NG1!'], ['🌱', 'Soja', 'CBOT:ZS1!'], ['🌽', 'Milho', 'CBOT:ZC1!'], ['🌾', 'Trigo', 'CBOT:ZW1!']],
+    cripto: [['₿', 'Bitcoin', 'BITSTAMP:BTCUSD'], ['Ξ', 'Ethereum', 'BITSTAMP:ETHUSD'], ['🔶', 'BNB', 'BINANCE:BNBUSDT'], ['◎', 'Solana', 'BINANCE:SOLUSDT'], ['✕', 'XRP', 'BITSTAMP:XRPUSD'], ['₳', 'Cardano', 'BINANCE:ADAUSDT'], ['Ð', 'Dogecoin', 'BINANCE:DOGEUSDT'], ['🔺', 'Avalanche', 'BINANCE:AVAXUSDT']]
+  };
+
   function tvScanAttempt(url, body) {
-    return fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body
-    }).then(function (r) {
+    return fetchWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }, 7000).then(function (r) {
       if (!r.ok) throw new Error('status ' + r.status);
       return r.json();
     }).then(function (d) {
@@ -954,65 +981,46 @@
   function tvScan(tickers) {
     var body = JSON.stringify({ symbols: { tickers: tickers, query: { types: [] } }, columns: ['close', 'change', 'change_abs', 'volume', 'description'] });
     var chain = Promise.reject();
-    TV_PROXY_URLS.forEach(function (url) {
-      chain = chain.catch(function () { return tvScanAttempt(url, body); });
-    });
+    TV_PROXY_URLS.forEach(function (url) { chain = chain.catch(function () { return tvScanAttempt(url, body); }); });
     return chain.catch(function () { return []; });
   }
 
-  function makeRow(flag, name, sym, scanData) {
+  function scanRowToApiShape(flag, name, sym, scanData) {
     var row = scanData.filter(function (r) { return r.s === sym; })[0];
     var d = (row && row.d) || [];
     var price = d[0], pct = d[1], chg = d[2];
-    if (price == null) return { flag: flag, name: name, last: '--', time: '' };
-    var priceDec = price < 1 ? 4 : price < 10 ? 3 : price < 1000 ? 2 : 0;
-    var row2 = {
+    if (price == null) return { flag: flag, name: name, price: '--', chg: '--', pct: '--', up: null };
+    var dec = price < 1 ? 4 : price < 10 ? 3 : price < 1000 ? 2 : 0;
+    return {
       flag: flag, name: name,
-      last: Number(price).toLocaleString('pt-BR', { minimumFractionDigits: priceDec, maximumFractionDigits: priceDec }),
-      time: nowHM()
+      price: Number(price).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }),
+      chg: chg != null ? (chg >= 0 ? '+' : '') + Number(chg).toLocaleString('pt-BR', { maximumFractionDigits: Math.abs(chg) < 10 ? 2 : 0 }) : '--',
+      pct: pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' : '--',
+      up: pct != null ? pct >= 0 : null
     };
-    if (chg != null) row2.chg = (chg >= 0 ? '+' : '') + Number(chg).toLocaleString('pt-BR', { maximumFractionDigits: Math.abs(chg) < 10 ? 2 : 0 });
-    if (pct != null) { row2.chgPct = fmtPctStr(pct); row2.up = pct >= 0; }
-    return row2;
   }
 
-  var ROW_SPECS = {
-    americas: [
-      ['🇧🇷', 'Ibovespa', 'BMFBOVESPA:IBOV'], ['🇺🇸', 'S&P 500', 'SP:SPX'], ['🇺🇸', 'Nasdaq', 'NASDAQ:NDX'],
-      ['🇺🇸', 'Dow Jones', 'DJ:DJI'], ['🇺🇸', 'Russell 2000', 'INDEX:RTY'], ['🇺🇸', 'S&P VIX', 'CBOE:VIX'],
-      ['🇨🇦', 'Toronto', 'TSX:TX60'], ['🇲🇽', 'México', 'BMV:IPC']
-    ],
-    europa: [
-      ['🇪🇺', 'Euro Stoxx 50', 'INDEX:SX5E'], ['🇬🇧', 'Inglaterra', 'LSE:UKX'], ['🇫🇷', 'França', 'EURONEXT:PX1'],
-      ['🇩🇪', 'Alemanha', 'XETR:DAX'], ['🇳🇱', 'Holanda', 'EURONEXT:AEX'], ['🇪🇸', 'Espanha', 'BME:IBC'],
-      ['🇮🇹', 'Itália', 'MIL:FTSEMIB'], ['🇨🇭', 'Suíça', 'SMI:SMI']
-    ],
-    asia: [
-      ['🇯🇵', 'Japão (Nikkei)', 'TVC:NI225'], ['🇭🇰', 'Hong Kong', 'HSI:HSI'], ['🇰🇷', 'Coreia do Sul', 'KRX:KOSPI'],
-      ['🇮🇳', 'Índia', 'NSE:NIFTY50'], ['🇦🇺', 'Austrália', 'ASX:XJO'], ['🇸🇬', 'Singapura', 'SGX:STI']
-    ],
-    futuros: [
-      ['🇺🇸', 'S&P 500 Fut', 'CME_MINI:ES1!'], ['🇺🇸', 'Nasdaq Fut', 'CME_MINI:NQ1!'], ['🇺🇸', 'Dow Jones Fut', 'CBOT_MINI:YM1!'],
-      ['🇧🇷', 'Ibovespa Fut', 'BMFBOVESPA:WIN1!'], ['🟡', 'Ouro Fut', 'COMEX:GC1!'], ['⚪', 'Prata Fut', 'COMEX:SI1!'],
-      ['🛢', 'Petróleo WTI', 'NYMEX:CL1!'], ['🛢', 'Petróleo Brent', 'NYMEX:BZ1!']
-    ],
-    cambio: [
-      ['🇺🇸', 'USD/BRL', 'FX:USDBRL'], ['🇪🇺', 'EUR/BRL', 'FX:EURBRL'], ['🇬🇧', 'GBP/BRL', 'FX:GBPBRL'], ['🇯🇵', 'JPY/BRL', 'FX:EURJPY'],
-      ['🇪🇺', 'EUR/USD', 'FX:EURUSD'], ['🇬🇧', 'GBP/USD', 'FX:GBPUSD'], ['🇯🇵', 'USD/JPY', 'FX:USDJPY'], ['🇨🇳', 'USD/CNY', 'FX:USDCNY'],
-      ['🇦🇷', 'USD/ARS', 'FX:USDARS'], ['🇨🇭', 'USD/CHF', 'FX:USDCHF'], ['🇨🇦', 'USD/CAD', 'FX:USDCAD'], ['🇲🇽', 'USD/MXN', 'FX:USDMXN']
-    ],
-    commodities: [
-      ['🟡', 'Ouro', 'COMEX:GC1!'], ['⚪', 'Prata', 'COMEX:SI1!'], ['🛢', 'WTI', 'NYMEX:CL1!'], ['🛢', 'Brent', 'NYMEX:BZ1!'],
-      ['🟠', 'Cobre', 'COMEX:HG1!'], ['🔥', 'Gás Natural', 'NYMEX:NG1!'], ['🌱', 'Soja', 'CBOT:ZS1!'], ['🌽', 'Milho', 'CBOT:ZC1!'], ['🌾', 'Trigo', 'CBOT:ZW1!']
-    ],
-    cripto: [
-      ['₿', 'Bitcoin', 'BITSTAMP:BTCUSD'], ['Ξ', 'Ethereum', 'BITSTAMP:ETHUSD'], ['🔶', 'BNB', 'BINANCE:BNBUSDT'], ['◎', 'Solana', 'BINANCE:SOLUSDT'],
-      ['✕', 'XRP', 'BITSTAMP:XRPUSD'], ['₳', 'Cardano', 'BINANCE:ADAUSDT'], ['Ð', 'Dogecoin', 'BINANCE:DOGEUSDT'], ['🔺', 'Avalanche', 'BINANCE:AVAXUSDT']
-    ]
-  };
+  function fetchScannerFallback() {
+    var groupKeys = Object.keys(ROW_SPECS);
+    return Promise.all(groupKeys.map(function (k) { return tvScan(ROW_SPECS[k].map(function (s) { return s[2]; })); }))
+      .then(function (results) {
+        var out = {};
+        groupKeys.forEach(function (k, i) {
+          out[k] = ROW_SPECS[k].map(function (s) { return scanRowToApiShape(s[0], s[1], s[2], results[i]); });
+        });
+        return out;
+      });
+  }
 
-  function buildRows(groupKey, scanData) {
-    return ROW_SPECS[groupKey].map(function (s) { return makeRow(s[0], s[1], s[2], scanData); });
+  function apiRowToTableRow(item) {
+    return {
+      flag: item.flag, name: item.name,
+      last: item.price,
+      chg: item.chg && item.chg !== '--' ? item.chg : null,
+      chgPct: item.pct && item.pct !== '--' ? item.pct : null,
+      up: item.up,
+      time: nowHM()
+    };
   }
 
   var marketCache = null;
@@ -1028,16 +1036,9 @@
       return;
     }
     marketLoading = true;
-    Promise.all([
-      tvScan(ROW_SPECS.americas.map(function (s) { return s[2]; })),
-      tvScan(ROW_SPECS.europa.map(function (s) { return s[2]; })),
-      tvScan(ROW_SPECS.asia.map(function (s) { return s[2]; })),
-      tvScan(ROW_SPECS.futuros.map(function (s) { return s[2]; })),
-      tvScan(ROW_SPECS.cambio.map(function (s) { return s[2]; })),
-      tvScan(ROW_SPECS.commodities.map(function (s) { return s[2]; })),
-      tvScan(ROW_SPECS.cripto.map(function (s) { return s[2]; }))
-    ]).then(function (res) {
-      marketCache = { americas: res[0], europa: res[1], asia: res[2], futuros: res[3], cambio: res[4], commodities: res[5], cripto: res[6], time: nowHM() };
+    fetchOwnApi().catch(function () { return fetchScannerFallback(); }).then(function (d) {
+      d.time = nowHM();
+      marketCache = d;
       marketLoading = false;
       marketListeners.forEach(function (fn) { fn(marketCache); });
       persistentMarketListeners.forEach(function (fn) { fn(marketCache); });
@@ -1065,7 +1066,7 @@
     if (!cache) {
       body.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
     } else {
-      renderMktTable(body, buildRows(groupKey, cache[groupKey]));
+      renderMktTable(body, (cache[groupKey] || []).map(apiRowToTableRow));
     }
     containerEl.appendChild(card);
   }
