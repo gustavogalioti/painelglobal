@@ -60,6 +60,7 @@
   .mkt-subtab.active { background: #4fd1ff; color: #04121c; border-color: #4fd1ff; }
 
   .mkt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; }
+  .mkt-stack { display: flex; flex-direction: column; gap: 14px; }
   .mkt-card {
     background: rgba(8,16,28,0.75); border: 1px solid rgba(79,209,255,0.22);
     border-radius: 12px; overflow: hidden;
@@ -1146,7 +1147,7 @@
     indicadores: function () {
       var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
+      grid.className = 'mkt-stack';
       grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
       wrapper.appendChild(grid);
       onMarketData(function (cache) {
@@ -1162,7 +1163,7 @@
     cambio: function () {
       var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
+      grid.className = 'mkt-stack';
       grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
       wrapper.appendChild(grid);
       onMarketData(function (cache) {
@@ -1181,7 +1182,7 @@
     commodities: function () {
       var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
+      grid.className = 'mkt-stack';
       grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
       wrapper.appendChild(grid);
       onMarketData(function (cache) {
@@ -1198,7 +1199,7 @@
     cripto: function () {
       var wrapper = document.createElement('div');
       var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
+      grid.className = 'mkt-stack';
       grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
       wrapper.appendChild(grid);
       onMarketData(function (cache) {
