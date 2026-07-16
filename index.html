@@ -22,80 +22,11 @@
   .bl { bottom: 18px; left: 18px; border-bottom: 2px solid; border-left: 2px solid; }
   .br { bottom: 18px; right: 18px; border-bottom: 2px solid; border-right: 2px solid; }
 
-  #header { position: absolute; top: 62px; left: 26px; z-index: 2; }
+  #header { position: absolute; top: 26px; left: 26px; z-index: 2; }
   #eyebrow { font-size: 11px; letter-spacing: 3px; color: #4fd1ff; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; }
   #title { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
 
-  #hudData { position: absolute; top: 62px; right: 26px; z-index: 2; text-align: right; color: #9fd6ff; font-size: 12px; line-height: 1.7; opacity: 0.85; }
-
-  /* Navegação principal (abas do painel) */
-  #topNav {
-    position: absolute; top: 0; left: 0; right: 0; height: 46px; z-index: 30;
-    background: rgba(6, 12, 22, 0.92); border-bottom: 1px solid rgba(79,209,255,0.25);
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-    backdrop-filter: blur(6px);
-  }
-  .nav-tab {
-    background: transparent; border: 1px solid rgba(79,209,255,0.3); color: #9fd6ff;
-    padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700;
-    cursor: pointer; font-family: inherit; letter-spacing: 0.3px; transition: all 0.15s;
-  }
-  .nav-tab:hover { border-color: rgba(79,209,255,0.6); }
-  .nav-tab.active { background: #4fd1ff; color: #04121c; border-color: #4fd1ff; }
-
-  #globeView, #marketView { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-  #marketView { display: none; top: 46px; overflow-y: auto; padding: 20px 20px 40px; box-sizing: border-box; }
-  #marketView::-webkit-scrollbar { width: 8px; }
-  #marketView::-webkit-scrollbar-thumb { background: rgba(79,209,255,0.3); border-radius: 4px; }
-
-  .mkt-subtabs-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-  .mkt-subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0; }
-  .mkt-status { display: flex; align-items: center; gap: 8px; }
-  .mkt-subtab {
-    background: rgba(8,16,28,0.7); border: 1px solid rgba(79,209,255,0.25); color: #9fd6ff;
-    padding: 7px 15px; border-radius: 18px; font-size: 12px; font-weight: 700;
-    cursor: pointer; font-family: inherit; transition: all 0.15s;
-  }
-  .mkt-subtab:hover { border-color: rgba(79,209,255,0.55); }
-  .mkt-subtab.active { background: #4fd1ff; color: #04121c; border-color: #4fd1ff; }
-
-  .mkt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; }
-  .mkt-stack { display: flex; flex-direction: column; gap: 14px; }
-  .mkt-card {
-    background: rgba(8,16,28,0.75); border: 1px solid rgba(79,209,255,0.22);
-    border-radius: 12px; overflow: hidden;
-  }
-  .mkt-card-title {
-    padding: 10px 14px; border-bottom: 1px solid rgba(79,209,255,0.18);
-    font-size: 12px; font-weight: 800; color: #4fd1ff; letter-spacing: 0.5px;
-  }
-  .mkt-footnote { font-size: 10px; color: #52738f; line-height: 1.6; margin-top: 16px; max-width: 640px; }
-
-  .mkt-table-wrap { overflow-x: auto; }
-  table.mkt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  table.mkt-table thead tr { background: rgba(79,209,255,0.06); }
-  table.mkt-table th {
-    padding: 7px 12px; font-size: 10px; color: #7fa8c9; font-weight: 700;
-    letter-spacing: 0.5px; text-align: right; white-space: nowrap;
-  }
-  table.mkt-table th:first-child { text-align: left; }
-  table.mkt-table td {
-    padding: 8px 12px; border-top: 1px solid rgba(79,209,255,0.1);
-    color: #e8f4ff; text-align: right; white-space: nowrap;
-  }
-  table.mkt-table td:first-child { text-align: left; }
-  table.mkt-table td.mkt-name { font-weight: 600; }
-  table.mkt-table td.mkt-time { color: #52738f; font-size: 10px; }
-  .mkt-chip { border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
-  .mkt-chip.up { background: rgba(111,224,138,0.15); color: #6fe08a; }
-  .mkt-chip.down { background: rgba(255,107,107,0.15); color: #ff6b6b; }
-  .mkt-chip.flat { background: rgba(127,168,201,0.12); color: #7fa8c9; }
-  .mkt-card-refresh {
-    background: none; border: 1px solid rgba(79,209,255,0.3); color: #9fd6ff;
-    border-radius: 14px; padding: 3px 10px; font-size: 11px; cursor: pointer; font-family: inherit;
-  }
-  .mkt-card-head-row { display: flex; align-items: center; justify-content: space-between; }
-  .mkt-updated { font-size: 10px; color: #52738f; margin-right: 8px; }
+  #hudData { position: absolute; top: 26px; right: 26px; z-index: 2; text-align: right; color: #9fd6ff; font-size: 12px; line-height: 1.7; opacity: 0.85; }
 
   #footer { position: absolute; bottom: 26px; left: 26px; z-index: 2; color: #7fa8c9; font-size: 11px; letter-spacing: 0.5px; opacity: 0.75; }
 
@@ -152,7 +83,7 @@
   #countryCard .cc-saved-msg { font-size: 11px; color: #6fe08a; margin-left: 10px; opacity: 0; transition: opacity 0.3s; }
 
   #sidePanel {
-    position: absolute; top: 46px; right: 0; height: calc(100% - 46px); width: 300px; max-width: 82vw;
+    position: absolute; top: 0; right: 0; height: 100%; width: 300px; max-width: 82vw;
     background: rgba(6, 12, 22, 0.88); border-left: 1px solid rgba(79,209,255,0.25);
     z-index: 4; transition: transform 0.35s ease; backdrop-filter: blur(6px);
     display: flex; flex-direction: column;
@@ -193,12 +124,6 @@
 </head>
 <body>
 <div id="app">
-  <div id="topNav">
-    <button class="nav-tab active" id="navGlobo">🌍 Globo</button>
-    <button class="nav-tab" id="navMercado">📊 Mercado &amp; Indicadores</button>
-  </div>
-
-  <div id="globeView">
   <div class="hud-corner tl"></div>
   <div class="hud-corner tr"></div>
   <div class="hud-corner bl"></div>
@@ -255,29 +180,6 @@
   <div id="loading">CARREGANDO GLOBO…</div>
 
   <canvas id="globeCanvas"></canvas>
-  </div>
-
-  <div id="marketView">
-    <div class="mkt-subtabs-row">
-      <div class="mkt-subtabs" id="mktSubtabs">
-        <button class="mkt-subtab active" data-tab="indicadores">📊 Indicadores</button>
-        <button class="mkt-subtab" data-tab="cambio">💱 Câmbio</button>
-        <button class="mkt-subtab" data-tab="commodities">🛢 Commodities</button>
-        <button class="mkt-subtab" data-tab="cripto">₿ Cripto</button>
-        <button class="mkt-subtab" data-tab="noticias">📰 Notícias</button>
-        <button class="mkt-subtab" data-tab="calendario">📅 Calendário</button>
-      </div>
-      <div id="mktStatus" class="mkt-status">
-        <span id="mktStatusTime" class="mkt-updated">Carregando...</span>
-        <button id="mktStatusRefresh" class="mkt-card-refresh">↻</button>
-      </div>
-    </div>
-    <div id="mktContent"></div>
-    <div class="mkt-footnote">
-      Dados reais: fonte principal é sua própria API (painel-controle-pearl.vercel.app), com fallback automático
-      para a API pública da TradingView caso a principal não responda. Notícias e Calendário usam widgets ao vivo da TradingView.
-    </div>
-  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -289,7 +191,6 @@
     });
   }
 
-  // tz = fuso horário IANA da capital de cada país
   var COUNTRIES = [
     { code: "US", name: "Estados Unidos", capital: "Washington, D.C.", lat: 38.9, lon: -77.0, pop: "335M", region: "América do Norte", currency: "USD", tz: "America/New_York" },
     { code: "CA", name: "Canadá", capital: "Ottawa", lat: 45.4, lon: -75.7, pop: "39M", region: "América do Norte", currency: "CAD", tz: "America/Toronto" },
@@ -526,9 +427,6 @@
     eventGroup.add(sprite);
   });
 
-  // -------------------------------------------------------------
-  // Horário local (Intl API — não precisa de servidor/API externa)
-  // -------------------------------------------------------------
   function formatLocalTime(tz) {
     try {
       return new Date().toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit' });
@@ -721,7 +619,6 @@
 
   var worldPos = new THREE.Vector3();
   var lastFocusCode = null;
-  var focusedCountryRef = null;
 
   function updateFocusPanel() {
     var best = null, bestZ = -Infinity;
@@ -730,7 +627,6 @@
       if (worldPos.z > bestZ) { bestZ = worldPos.z; best = sprite.userData.data; }
     });
     if (!best) return;
-    focusedCountryRef = best;
     if (best.code !== lastFocusCode) {
       lastFocusCode = best.code;
       spFocusName.textContent = flagEmoji(best.code) + ' ' + best.name;
@@ -769,11 +665,9 @@
 
   var autoRotateSpeed = 0.0011;
   var frameCount = 0;
-  var activeView = 'globe';
 
   function animate() {
     requestAnimationFrame(animate);
-    if (activeView !== 'globe') return; // economiza bateria/CPU quando a aba de mercado está aberta
     frameCount++;
 
     if (!isDragging) {
@@ -812,474 +706,7 @@
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
   });
-
-  // -------------------------------------------------------------
-  // Navegação principal: Globo <-> Mercado & Indicadores
-  // -------------------------------------------------------------
-  var navGlobo = document.getElementById('navGlobo');
-  var navMercado = document.getElementById('navMercado');
-  var globeViewEl = document.getElementById('globeView');
-  var marketViewEl = document.getElementById('marketView');
-  var mktContent = document.getElementById('mktContent');
-  var currentMktTab = null;
-
-  navGlobo.addEventListener('click', function () {
-    activeView = 'globe';
-    navGlobo.classList.add('active');
-    navMercado.classList.remove('active');
-    globeViewEl.style.display = 'block';
-    marketViewEl.style.display = 'none';
-  });
-
-  navMercado.addEventListener('click', function () {
-    activeView = 'market';
-    navMercado.classList.add('active');
-    navGlobo.classList.remove('active');
-    globeViewEl.style.display = 'none';
-    marketViewEl.style.display = 'block';
-    if (!currentMktTab) showMarketTab('indicadores');
-  });
-
-  // -------------------------------------------------------------
-  // Widgets TradingView (dados reais, sem backend próprio)
-  // -------------------------------------------------------------
-  function mktCard(title, heightPx) {
-    var card = document.createElement('div');
-    card.className = 'mkt-card';
-    var head = document.createElement('div');
-    head.className = 'mkt-card-title';
-    head.textContent = title;
-    card.appendChild(head);
-    var body = document.createElement('div');
-    body.style.width = '100%';
-    body.style.height = heightPx + 'px';
-    card.appendChild(body);
-    return { card: card, body: body };
-  }
-
-  // Card com cabeçalho "título + atualizado HH:MM + botão refresh", usado nas tabelas de dados reais
-  function mktCardWithRefresh(title, onRefresh) {
-    var card = document.createElement('div');
-    card.className = 'mkt-card';
-    var head = document.createElement('div');
-    head.className = 'mkt-card-title mkt-card-head-row';
-    var titleSpan = document.createElement('span');
-    titleSpan.textContent = title;
-    var right = document.createElement('span');
-    var updatedSpan = document.createElement('span');
-    updatedSpan.className = 'mkt-updated';
-    var btn = document.createElement('button');
-    btn.className = 'mkt-card-refresh';
-    btn.textContent = '↻';
-    btn.addEventListener('click', function () { onRefresh(updatedSpan); });
-    right.appendChild(updatedSpan);
-    right.appendChild(btn);
-    head.appendChild(titleSpan);
-    head.appendChild(right);
-    card.appendChild(head);
-    var body = document.createElement('div');
-    body.style.padding = '4px 0';
-    card.appendChild(body);
-    return { card: card, body: body, updatedSpan: updatedSpan };
-  }
-
-  function renderMktTable(bodyEl, rows) {
-    var wrap = document.createElement('div');
-    wrap.className = 'mkt-table-wrap';
-    var table = document.createElement('table');
-    table.className = 'mkt-table';
-    table.innerHTML =
-      '<thead><tr><th>Nome</th><th>Último</th><th>Var.</th><th>Var.%</th><th>Hora</th></tr></thead>';
-    var tbody = document.createElement('tbody');
-    rows.forEach(function (r) {
-      var tr = document.createElement('tr');
-      var chipClass = r.up === true ? 'up' : r.up === false ? 'down' : 'flat';
-      var arrow = r.up === true ? '▲ ' : r.up === false ? '▼ ' : '';
-      tr.innerHTML =
-        '<td class="mkt-name">' + (r.flag ? r.flag + ' ' : '') + r.name + '</td>' +
-        '<td>' + r.last + '</td>' +
-        '<td>' + (r.chg != null ? r.chg : '--') + '</td>' +
-        '<td><span class="mkt-chip ' + chipClass + '">' + (r.chgPct != null ? arrow + r.chgPct : '--') + '</span></td>' +
-        '<td class="mkt-time">' + (r.time || '') + '</td>';
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    bodyEl.innerHTML = '';
-    bodyEl.appendChild(wrap);
-  }
-
-  function mountTV(bodyEl, widgetType, config, heightPx) {
-    var script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-' + widgetType + '.js';
-    script.async = true;
-    script.innerHTML = JSON.stringify(Object.assign({ width: '100%', height: heightPx }, config));
-    bodyEl.appendChild(script);
-  }
-
-  function marketOverviewConfig(tabs) {
-    return { colorTheme: 'dark', isTransparent: true, locale: 'br', showChart: true, tabs: tabs };
-  }
-
-  // ---------------------------------------------------------------
-  // Dados reais, com DUAS fontes independentes:
-  // 1) Sua API real do PAINEL PESSOAL (/api/market2) — fonte
-  //    principal, exatamente como no original.
-  // 2) Se por qualquer motivo ela não responder nesse navegador/rede,
-  //    cai automaticamente para a API pública da própria TradingView
-  //    (com proxy CORS), como plano B — mesmos tickers.
-  // ---------------------------------------------------------------
-  var MARKET_API_URL = 'https://painel-controle-pearl.vercel.app/api/market2';
-  var TV_SCAN_URL = 'https://scanner.tradingview.com/global/scan';
-  var TV_PROXY_URLS = [
-    TV_SCAN_URL,
-    'https://corsproxy.io/?url=' + encodeURIComponent(TV_SCAN_URL),
-    'https://thingproxy.freeboard.io/fetch/' + TV_SCAN_URL
-  ];
-
-  function fetchWithTimeout(url, opts, ms) {
-    return new Promise(function (resolve, reject) {
-      var done = false;
-      var t = setTimeout(function () { if (!done) { done = true; reject(new Error('timeout')); } }, ms || 8000);
-      fetch(url, opts).then(function (r) {
-        if (done) return; done = true; clearTimeout(t); resolve(r);
-      }).catch(function (e) {
-        if (done) return; done = true; clearTimeout(t); reject(e);
-      });
-    });
-  }
-
-  function fetchOwnApi() {
-    return fetchWithTimeout(MARKET_API_URL, {}, 8000).then(function (r) {
-      if (!r.ok) throw new Error('status ' + r.status);
-      return r.json();
-    }).then(function (d) {
-      if (d.error) throw new Error(d.error);
-      return d; // já vem no formato {americas:[{flag,name,price,chg,pct,up}], ...}
-    });
-  }
-
-  var ROW_SPECS = {
-    americas: [['🇧🇷', 'Ibovespa', 'BMFBOVESPA:IBOV'], ['🇺🇸', 'S&P 500', 'SP:SPX'], ['🇺🇸', 'Nasdaq', 'NASDAQ:NDX'], ['🇺🇸', 'Dow Jones', 'DJ:DJI'], ['🇺🇸', 'Russell 2000', 'INDEX:RTY'], ['🇺🇸', 'S&P VIX', 'CBOE:VIX'], ['🇨🇦', 'Toronto', 'TSX:TX60'], ['🇲🇽', 'México', 'BMV:IPC']],
-    europa: [['🇪🇺', 'Euro Stoxx 50', 'INDEX:SX5E'], ['🇬🇧', 'Inglaterra', 'LSE:UKX'], ['🇫🇷', 'França', 'EURONEXT:PX1'], ['🇩🇪', 'Alemanha', 'XETR:DAX'], ['🇳🇱', 'Holanda', 'EURONEXT:AEX'], ['🇪🇸', 'Espanha', 'BME:IBC'], ['🇮🇹', 'Itália', 'MIL:FTSEMIB'], ['🇨🇭', 'Suíça', 'SMI:SMI']],
-    asia: [['🇯🇵', 'Japão (Nikkei)', 'TVC:NI225'], ['🇭🇰', 'Hong Kong', 'HSI:HSI'], ['🇰🇷', 'Coreia do Sul', 'KRX:KOSPI'], ['🇮🇳', 'Índia', 'NSE:NIFTY50'], ['🇦🇺', 'Austrália', 'ASX:XJO'], ['🇸🇬', 'Singapura', 'SGX:STI']],
-    futuros: [['🇺🇸', 'S&P 500 Fut', 'CME_MINI:ES1!'], ['🇺🇸', 'Nasdaq Fut', 'CME_MINI:NQ1!'], ['🇺🇸', 'Dow Jones Fut', 'CBOT_MINI:YM1!'], ['🇧🇷', 'Ibovespa Fut', 'BMFBOVESPA:WIN1!'], ['🟡', 'Ouro Fut', 'COMEX:GC1!'], ['⚪', 'Prata Fut', 'COMEX:SI1!'], ['🛢', 'Petróleo WTI', 'NYMEX:CL1!'], ['🛢', 'Petróleo Brent', 'NYMEX:BZ1!']],
-    cambio: [['🇺🇸', 'USD/BRL', 'FX:USDBRL'], ['🇪🇺', 'EUR/BRL', 'FX:EURBRL'], ['🇬🇧', 'GBP/BRL', 'FX:GBPBRL'], ['🇯🇵', 'JPY/BRL', 'FX:EURJPY'], ['🇪🇺', 'EUR/USD', 'FX:EURUSD'], ['🇬🇧', 'GBP/USD', 'FX:GBPUSD'], ['🇯🇵', 'USD/JPY', 'FX:USDJPY'], ['🇨🇳', 'USD/CNY', 'FX:USDCNY'], ['🇦🇷', 'USD/ARS', 'FX:USDARS'], ['🇨🇭', 'USD/CHF', 'FX:USDCHF'], ['🇨🇦', 'USD/CAD', 'FX:USDCAD'], ['🇲🇽', 'USD/MXN', 'FX:USDMXN']],
-    commodities: [['🟡', 'Ouro', 'COMEX:GC1!'], ['⚪', 'Prata', 'COMEX:SI1!'], ['🛢', 'WTI', 'NYMEX:CL1!'], ['🛢', 'Brent', 'NYMEX:BZ1!'], ['🟠', 'Cobre', 'COMEX:HG1!'], ['🔥', 'Gás Natural', 'NYMEX:NG1!'], ['🌱', 'Soja', 'CBOT:ZS1!'], ['🌽', 'Milho', 'CBOT:ZC1!'], ['🌾', 'Trigo', 'CBOT:ZW1!']],
-    cripto: [['₿', 'Bitcoin', 'BITSTAMP:BTCUSD'], ['Ξ', 'Ethereum', 'BITSTAMP:ETHUSD'], ['🔶', 'BNB', 'BINANCE:BNBUSDT'], ['◎', 'Solana', 'BINANCE:SOLUSDT'], ['✕', 'XRP', 'BITSTAMP:XRPUSD'], ['₳', 'Cardano', 'BINANCE:ADAUSDT'], ['Ð', 'Dogecoin', 'BINANCE:DOGEUSDT'], ['🔺', 'Avalanche', 'BINANCE:AVAXUSDT']]
-  };
-
-  function tvScanAttempt(url, body) {
-    return fetchWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }, 7000).then(function (r) {
-      if (!r.ok) throw new Error('status ' + r.status);
-      return r.json();
-    }).then(function (d) {
-      if (!d || !d.data) throw new Error('sem dados');
-      return d.data;
-    });
-  }
-
-  function tvScan(tickers) {
-    var body = JSON.stringify({ symbols: { tickers: tickers, query: { types: [] } }, columns: ['close', 'change', 'change_abs', 'volume', 'description'] });
-    var chain = Promise.reject();
-    TV_PROXY_URLS.forEach(function (url) { chain = chain.catch(function () { return tvScanAttempt(url, body); }); });
-    return chain.catch(function () { return []; });
-  }
-
-  function scanRowToApiShape(flag, name, sym, scanData) {
-    var row = scanData.filter(function (r) { return r.s === sym; })[0];
-    var d = (row && row.d) || [];
-    var price = d[0], pct = d[1], chg = d[2];
-    if (price == null) return { flag: flag, name: name, price: '--', chg: '--', pct: '--', up: null };
-    var dec = price < 1 ? 4 : price < 10 ? 3 : price < 1000 ? 2 : 0;
-    return {
-      flag: flag, name: name,
-      price: Number(price).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec }),
-      chg: chg != null ? (chg >= 0 ? '+' : '') + Number(chg).toLocaleString('pt-BR', { maximumFractionDigits: Math.abs(chg) < 10 ? 2 : 0 }) : '--',
-      pct: pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' : '--',
-      up: pct != null ? pct >= 0 : null
-    };
-  }
-
-  function fetchScannerFallback() {
-    var groupKeys = Object.keys(ROW_SPECS);
-    return Promise.all(groupKeys.map(function (k) { return tvScan(ROW_SPECS[k].map(function (s) { return s[2]; })); }))
-      .then(function (results) {
-        var out = {};
-        groupKeys.forEach(function (k, i) {
-          out[k] = ROW_SPECS[k].map(function (s) { return scanRowToApiShape(s[0], s[1], s[2], results[i]); });
-        });
-        return out;
-      });
-  }
-
-  function apiRowToTableRow(item) {
-    return {
-      flag: item.flag, name: item.name,
-      last: item.price,
-      chg: item.chg && item.chg !== '--' ? item.chg : null,
-      chgPct: item.pct && item.pct !== '--' ? item.pct : null,
-      up: item.up,
-      time: nowHM()
-    };
-  }
-
-  var marketCache = null;
-  var marketLoading = false;
-  var marketListeners = [];
-  var persistentMarketListeners = [];
-
-  function loadAllMarketData(force) {
-    if (marketLoading) return;
-    if (marketCache && !force) {
-      marketListeners.forEach(function (fn) { fn(marketCache); });
-      persistentMarketListeners.forEach(function (fn) { fn(marketCache); });
-      return;
-    }
-    marketLoading = true;
-    fetchOwnApi().catch(function () { return fetchScannerFallback(); }).then(function (d) {
-      d.time = nowHM();
-      marketCache = d;
-      marketLoading = false;
-      marketListeners.forEach(function (fn) { fn(marketCache); });
-      persistentMarketListeners.forEach(function (fn) { fn(marketCache); });
-    }).catch(function () {
-      marketLoading = false;
-      marketListeners.forEach(function (fn) { fn(null); });
-      persistentMarketListeners.forEach(function (fn) { fn(null); });
-    });
-  }
-
-  function onMarketData(fn) {
-    marketListeners.push(fn);
-    loadAllMarketData(false);
-  }
-
-  function renderGroupCard(containerEl, title, groupKey, cache) {
-    var card = document.createElement('div');
-    card.className = 'mkt-card';
-    var head = document.createElement('div');
-    head.className = 'mkt-card-title';
-    head.textContent = title;
-    card.appendChild(head);
-    var body = document.createElement('div');
-    card.appendChild(body);
-    if (cache) {
-      renderMktTable(body, (cache[groupKey] || []).map(apiRowToTableRow));
-    } else {
-      // fetch() falhou nas duas fontes (provável bloqueio de rede/extensão) —
-      // widget da TradingView via <script>, que costuma passar onde fetch não passa.
-      body.style.height = '320px';
-      var symbols = ROW_SPECS[groupKey].map(function (s) { return { s: s[2], d: s[1] }; });
-      mountTV(body, 'market-overview', Object.assign(marketOverviewConfig([{ title: title, originalTitle: title, symbols: symbols }]), { showChart: false }), 320);
-    }
-    containerEl.appendChild(card);
-  }
-
-  // ---------------------------------------------------------------
-  // Notícias reais em português: mesma rota /api/gnews do seu
-  // PAINEL PESSOAL (também com CORS aberto), que busca no Google
-  // News em pt-BR e devolve título/link/data/fonte já limpos.
-  // ---------------------------------------------------------------
-  var NEWS_API_URL = 'https://painel-controle-pearl.vercel.app/api/gnews';
-
-  function fmtNewsDate(dateStr) {
-    if (!dateStr) return '';
-    var d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  }
-
-  function renderNewsList(bodyEl, items) {
-    bodyEl.innerHTML = '';
-    if (!items || items.length === 0) {
-      bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Nenhuma notícia encontrada agora.</div>';
-      return;
-    }
-    var list = document.createElement('div');
-    items.forEach(function (it) {
-      var row = document.createElement('a');
-      row.href = it.link || '#';
-      row.target = '_blank';
-      row.rel = 'noopener noreferrer';
-      row.style.display = 'block';
-      row.style.padding = '12px 14px';
-      row.style.borderTop = '1px solid rgba(79,209,255,0.1)';
-      row.style.textDecoration = 'none';
-      row.style.color = '#e8f4ff';
-      row.innerHTML =
-        '<div style="font-size:12px;font-weight:700;line-height:1.4;margin-bottom:4px;">' + it.title + '</div>' +
-        '<div style="font-size:10px;color:#7fa8c9;">' + (it.src || '') + (it.src && it.date ? ' · ' : '') + fmtNewsDate(it.date) + '</div>';
-      list.appendChild(row);
-    });
-    bodyEl.appendChild(list);
-  }
-
-  function loadNoticias(bodyEl, updatedSpan) {
-    bodyEl.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando notícias...</div>';
-    var queries = ['economia', 'mercado financeiro'];
-    Promise.all(queries.map(function (q) {
-      return fetchWithTimeout(NEWS_API_URL + '?mode=search&q=' + encodeURIComponent(q), {}, 8000)
-        .then(function (r) { return r.json(); })
-        .then(function (d) { return d.items || []; })
-        .catch(function () { return []; });
-    })).then(function (results) {
-      var seen = {};
-      var merged = [];
-      results.forEach(function (list) {
-        list.forEach(function (it) {
-          if (!seen[it.title]) { seen[it.title] = true; merged.push(it); }
-        });
-      });
-      merged.sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
-      if (merged.length === 0) throw new Error('vazio');
-      renderNewsList(bodyEl, merged.slice(0, 16));
-      if (updatedSpan) updatedSpan.textContent = 'Atualizado ' + nowHM();
-    }).catch(function () {
-      // Fallback: widget de notícias da TradingView (não usa fetch)
-      bodyEl.innerHTML = '';
-      mountTV(bodyEl, 'timeline', { colorTheme: 'dark', isTransparent: true, locale: 'br', feedMode: 'all_symbols', displayMode: 'regular' }, 480);
-      if (updatedSpan) updatedSpan.textContent = 'Modo widget (rede bloqueou dados diretos)';
-    });
-  }
-
-  var MKT_TABS_BUILDERS = {
-    indicadores: function () {
-      var wrapper = document.createElement('div');
-      var grid = document.createElement('div');
-      grid.className = 'mkt-stack';
-      grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
-      wrapper.appendChild(grid);
-      onMarketData(function (cache) {
-        grid.innerHTML = '';
-        renderGroupCard(grid, '🌎 Américas', 'americas', cache);
-        renderGroupCard(grid, '🇪🇺 Europa', 'europa', cache);
-        renderGroupCard(grid, '🌏 Ásia & Oceania', 'asia', cache);
-        renderGroupCard(grid, '📋 Futuros', 'futuros', cache);
-      });
-      return wrapper;
-    },
-
-    cambio: function () {
-      var wrapper = document.createElement('div');
-      var grid = document.createElement('div');
-      grid.className = 'mkt-stack';
-      grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
-      wrapper.appendChild(grid);
-      onMarketData(function (cache) {
-        grid.innerHTML = '';
-        renderGroupCard(grid, '💱 Câmbio', 'cambio', cache);
-        var cr = mktCard('📊 Cross Rates — TradingView', 460);
-        mountTV(cr.body, 'forex-cross-rates', {
-          colorTheme: 'dark', isTransparent: true, locale: 'br',
-          currencies: ['USD', 'BRL', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF', 'AUD', 'CAD']
-        }, 460);
-        grid.appendChild(cr.card);
-      });
-      return wrapper;
-    },
-
-    commodities: function () {
-      var wrapper = document.createElement('div');
-      var grid = document.createElement('div');
-      grid.className = 'mkt-stack';
-      grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
-      wrapper.appendChild(grid);
-      onMarketData(function (cache) {
-        grid.innerHTML = '';
-        renderGroupCard(grid, '🛢 Commodities', 'commodities', cache);
-        var tv = mktCard('📊 TradingView', 460);
-        var symbols = ROW_SPECS.commodities.map(function (s) { return { s: s[2], d: s[1] }; });
-        mountTV(tv.body, 'market-overview', marketOverviewConfig([{ title: 'Commodities', originalTitle: 'Commodities', symbols: symbols }]), 460);
-        grid.appendChild(tv.card);
-      });
-      return wrapper;
-    },
-
-    cripto: function () {
-      var wrapper = document.createElement('div');
-      var grid = document.createElement('div');
-      grid.className = 'mkt-stack';
-      grid.innerHTML = '<div style="padding:16px;font-size:12px;color:#7fa8c9;">Carregando...</div>';
-      wrapper.appendChild(grid);
-      onMarketData(function (cache) {
-        grid.innerHTML = '';
-        renderGroupCard(grid, '₿ Criptomoedas', 'cripto', cache);
-        var tv = mktCard('📊 TradingView', 460);
-        var symbols = ROW_SPECS.cripto.map(function (s) { return { s: s[2], d: s[1] }; });
-        mountTV(tv.body, 'market-overview', marketOverviewConfig([{ title: 'Cripto', originalTitle: 'Cripto', symbols: symbols }]), 460);
-        grid.appendChild(tv.card);
-      });
-      return wrapper;
-    },
-
-    noticias: function () {
-      var wrapper = document.createElement('div');
-      var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
-      grid.style.gridTemplateColumns = '1fr';
-      wrapper.appendChild(grid);
-      var c = mktCardWithRefresh('📰 Notícias Econômicas (PT-BR)', function (updatedSpan) { loadNoticias(c.body, updatedSpan); });
-      grid.appendChild(c.card);
-      loadNoticias(c.body, c.updatedSpan);
-      return wrapper;
-    },
-
-    calendario: function () {
-      var grid = document.createElement('div');
-      grid.className = 'mkt-grid';
-      grid.style.gridTemplateColumns = '1fr';
-      var card = document.createElement('div');
-      card.className = 'mkt-card';
-      var head = document.createElement('div');
-      head.className = 'mkt-card-title';
-      head.textContent = '📅 Calendário Econômico — Investing.com';
-      card.appendChild(head);
-      var iframe = document.createElement('iframe');
-      iframe.src = 'https://sslecal2.investing.com/?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&features=datepicker,timezone&countries=25,32,6,37,72,22,17,39,14,10,35,43,56,36,110,11,26,12,4,5&calType=week&timeZone=8&lang=12';
-      iframe.width = '100%';
-      iframe.height = '620';
-      iframe.frameBorder = '0';
-      iframe.style.border = 'none';
-      iframe.style.display = 'block';
-      card.appendChild(iframe);
-      grid.appendChild(card);
-      return grid;
-    }
-  };
-
-
-  function showMarketTab(tabId) {
-    currentMktTab = tabId;
-    marketListeners = []; // evita listeners acumulando de abas anteriores
-    document.querySelectorAll('.mkt-subtab').forEach(function (btn) {
-      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
-    });
-    mktContent.innerHTML = '';
-    mktContent.appendChild(MKT_TABS_BUILDERS[tabId]());
-  }
-
-  document.getElementById('mktSubtabs').addEventListener('click', function (e) {
-    var btn = e.target.closest('.mkt-subtab');
-    if (!btn) return;
-    showMarketTab(btn.getAttribute('data-tab'));
-  });
-
-  // Status "Atualizado HH:MM" + botão de atualizar, ao lado das sub-abas
-  var mktStatus = document.getElementById('mktStatus');
-  if (mktStatus) {
-    var mktStatusTime = document.getElementById('mktStatusTime');
-    var mktStatusRefresh = document.getElementById('mktStatusRefresh');
-    mktStatusRefresh.addEventListener('click', function () {
-      loadAllMarketData(true);
-    });
-    persistentMarketListeners.push(function (cache) {
-      mktStatusTime.textContent = cache ? 'Atualizado ' + cache.time : 'Modo widget (rede bloqueou dados diretos)';
-    });
-  }
 })();
 </script>
-
-
 </body>
 </html>
